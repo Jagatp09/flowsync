@@ -1,0 +1,302 @@
+<%- include('../partials/managerSidebar', { activePage: 'shifts' }) %>
+
+<main class="flex-1 ml-64">
+  <!-- Top Bar -->
+  <header class="h-16 border-b border-primary/10 bg-white dark:bg-slate-900 px-8 flex items-center justify-between sticky top-0 z-10">
+    <div class="flex items-center gap-4">
+      <a href="/manager/shifts" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+        <span class="material-symbols-outlined">arrow_back</span>
+      </a>
+      <h2 class="text-xl font-bold">Shift Details</h2>
+    </div>
+  </header>
+  <div class="p-8 space-y-8">
+    <!-- Shift Info Card -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <% if (shift.status === 'SCHEDULED') { %>
+              <span class="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full text-xs font-bold">Planned</span>
+            <% } else if (shift.status === 'ACTIVE') { %>
+              <span class="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-bold">Active</span>
+            <% } else if (shift.status === 'CLOSED') { %>
+              <span class="px-3 py-1 bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded-full text-xs font-bold">Closed</span>
+            <% } %>
+          </div>
+          <h3 class="text-2xl font-black text-slate-900 dark:text-white">
+            <% if (shift.shiftType === 'OPENING') { %>
+              Opening Shift
+            <% } else if (shift.shiftType === 'MID_SHIFT') { %>
+              Mid Shift
+            <% } else if (shift.shiftType === 'CLOSING') { %>
+              Closing Shift
+            <% } %>
+          </h3>
+          <p class="text-slate-500 mt-1">
+            <%= new Date(shift.shiftDate).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) %>
+          </p>
+        </div>
+        <div class="flex gap-2">
+          <% if (shift.status === 'SCHEDULED') { %>
+            <form action="/manager/shifts/<%= shift.id %>/start?_method=POST" method="POST">
+              <button type="submit" class="px-4 py-2 bg-emerald-500 text-white rounded-lg font-bold hover:bg-emerald-600 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">play_arrow</span>
+                Start Shift
+              </button>
+            </form>
+          <% } else if (shift.status === 'ACTIVE') { %>
+            <form action="/manager/shifts/<%= shift.id %>/close?_method=POST" method="POST">
+              <button type="submit" class="px-4 py-2 bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">stop</span>
+                Close Shift
+              </button>
+            </form>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Time Info -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-200 dark:border-slate-800">
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider">Created By</p>
+          <p class="font-bold text-slate-900 dark:text-white mt-1"><%= shift.User ? shift.User.fullName : 'System' %></p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider">Started</p>
+          <p class="font-bold text-slate-900 dark:text-white mt-1">
+            <% if (shift.startedAt) { %>
+              <%= new Date(shift.startedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) %>
+            <% } else { %>
+              Not started
+            <% } %>
+          </p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider">Closed</p>
+          <p class="font-bold text-slate-900 dark:text-white mt-1">
+            <% if (shift.closedAt) { %>
+              <%= new Date(shift.closedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) %>
+            <% } else { %>
+              Not closed
+            <% } %>
+          </p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider">Duration</p>
+          <p class="font-bold text-slate-900 dark:text-white mt-1">
+            <% if (shift.startedAt && shift.closedAt) { %>
+              <% const duration = Math.round((new Date(shift.closedAt) - new Date(shift.startedAt)) / (1000 * 60)); %>
+              <%= duration %> min
+            <% } else if (shift.startedAt) { %>
+              In progress
+            <% } else { %>
+              -
+            <% } %>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shift Summary (only shown for closed shifts) -->
+    <% if (shift.status === 'CLOSED' && summary) { %>
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+        <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Shift Summary</h4>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div class="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+            <p class="text-2xl font-black text-slate-900 dark:text-white"><%= summary.totalTasks %></p>
+            <p class="text-xs text-slate-500 mt-1">Total Tasks</p>
+          </div>
+          <div class="text-center p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+            <p class="text-2xl font-black text-emerald-600"><%= summary.completedTasks %></p>
+            <p class="text-xs text-slate-500 mt-1">Completed</p>
+          </div>
+          <div class="text-center p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+            <p class="text-2xl font-black text-amber-600"><%= summary.pendingTasks %></p>
+            <p class="text-xs text-slate-500 mt-1">Pending</p>
+          </div>
+          <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <p class="text-2xl font-black text-blue-600"><%= summary.completionPercent %>%</p>
+            <p class="text-xs text-slate-500 mt-1">Completion</p>
+          </div>
+          <div class="text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <p class="text-2xl font-black text-red-600"><%= summary.issuesCount %></p>
+            <p class="text-xs text-slate-500 mt-1">Issues</p>
+          </div>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Previous Shift Handoff -->
+    <% if (previousShift) { %>
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+        <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Previous Shift Handoff</h4>
+        <div class="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+          <p class="text-sm font-bold text-slate-700 dark:text-slate-300">
+            <%= previousShift.shiftType %> - <%= new Date(previousShift.shiftDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
+          </p>
+          <% if (previousNotes && previousNotes.length > 0) { %>
+            <% previousNotes.forEach(function(note) { %>
+              <div class="mt-2">
+                <p class="text-xs text-slate-500"><%= note.author ? note.author.fullName : 'Unknown' %> - <%= new Date(note.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) %></p>
+                <p class="text-sm text-slate-600 dark:text-slate-400 mt-1"><%= note.noteText %></p>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <p class="text-sm text-slate-400 mt-2 italic">No handoff notes from previous shift.</p>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
+
+    <!-- Shift Notes -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+      <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Shift Notes</h4>
+      <% if (shift.notes) { %>
+        <p class="text-sm text-slate-600 dark:text-slate-400"><%= shift.notes %></p>
+      <% } else { %>
+        <p class="text-sm text-slate-400 italic">No notes for this shift.</p>
+      <% } %>
+    </div>
+
+    <!-- Assigned Staff -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h4 class="text-lg font-bold text-slate-900 dark:text-white">Assigned Staff</h4>
+        <% if (shift.status !== 'CLOSED') { %>
+          <button onclick="document.getElementById('assignStaffForm').classList.toggle('hidden')" class="px-3 py-1.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90">
+            + Add Staff
+          </button>
+        <% } %>
+      </div>
+
+      <!-- Add Staff Form -->
+      <div id="assignStaffForm" class="hidden mb-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+        <form action="/manager/shifts/<%= shift.id %>/assign?_method=POST" method="POST" class="flex flex-wrap items-end gap-4">
+          <div class="flex-1 min-w-[200px]">
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Staff Member</label>
+            <select name="userId" required class="w-full mt-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm">
+              <option value="">Select staff...</option>
+              <% staff.forEach(function(s) { %>
+                <option value="<%= s.id %>"><%= s.fullName %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="w-48">
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Role</label>
+            <input type="text" name="roleLabel" placeholder="e.g., Lead, Staff" class="w-full mt-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"/>
+          </div>
+          <button type="submit" class="px-4 py-2 bg-emerald-500 text-white font-bold rounded-lg hover:bg-emerald-600">Assign</button>
+        </form>
+      </div>
+
+      <% if (assignments && assignments.length > 0) { %>
+        <div class="space-y-3">
+          <% assignments.forEach(function(assignment) { %>
+            <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <div class="flex items-center gap-3">
+                <div class="size-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <span class="material-symbols-outlined text-primary">person</span>
+                </div>
+                <div>
+                  <p class="font-bold text-slate-900 dark:text-white"><%= assignment.User ? assignment.User.fullName : 'Unknown' %></p>
+                  <p class="text-xs text-slate-500"><%= assignment.roleLabel || 'Staff' %></p>
+                </div>
+              </div>
+              <form action="/manager/assignments/<%= assignment.id %>?_method=DELETE" method="POST" class="inline">
+                <button type="submit" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg" title="Remove">
+                  <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </form>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <p class="text-sm text-slate-400 italic">No staff assigned to this shift.</p>
+      <% } %>
+    </div>
+
+    <!-- Task Assignments -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h4 class="text-lg font-bold text-slate-900 dark:text-white">Task Assignments</h4>
+        <% if (shift.status !== 'CLOSED') { %>
+          <button onclick="document.getElementById('assignTaskForm').classList.toggle('hidden')" class="px-3 py-1.5 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90">
+            + Add Task
+          </button>
+        <% } %>
+      </div>
+
+      <!-- Add Task Form -->
+      <div id="assignTaskForm" class="hidden mb-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+        <form action="/manager/shifts/<%= shift.id %>/tasks?_method=POST" method="POST" class="space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Assign To</label>
+              <select name="assignedTo" required class="w-full mt-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm">
+                <option value="">Select staff...</option>
+                <% staff.forEach(function(s) { %>
+                  <option value="<%= s.id %>"><%= s.fullName %></option>
+                <% }); %>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Priority</label>
+              <select name="priority" class="w-full mt-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM" selected>Medium</option>
+                <option value="HIGH">High</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Custom Task</label>
+            <input type="text" name="customTaskText" placeholder="Enter task description" class="w-full mt-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"/>
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Notes</label>
+            <textarea name="notes" rows="2" placeholder="Optional notes" class="w-full mt-1 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm"></textarea>
+          </div>
+          <button type="submit" class="px-4 py-2 bg-emerald-500 text-white font-bold rounded-lg hover:bg-emerald-600">Assign Task</button>
+        </form>
+      </div>
+
+      <% if (tasks && tasks.length > 0) { %>
+        <div class="space-y-3">
+          <% tasks.forEach(function(task) { %>
+            <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <div class="flex items-center gap-3 flex-1">
+                <% if (task.priority === 'HIGH') { %>
+                  <span class="px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded text-xs font-bold">HIGH</span>
+                <% } else if (task.priority === 'MEDIUM') { %>
+                  <span class="px-2 py-1 bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded text-xs font-bold">MEDIUM</span>
+                <% } else { %>
+                  <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded text-xs font-bold">LOW</span>
+                <% } %>
+                <div>
+                  <p class="font-bold text-slate-900 dark:text-white"><%= task.customTaskText || (task.ChecklistItem ? task.ChecklistItem.text : 'Task') %></p>
+                  <p class="text-xs text-slate-500">Assigned to: <%= task.assignee ? task.assignee.fullName : 'Unknown' %></p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <% if (task.status === 'DONE') { %>
+                  <span class="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded text-xs font-bold">Done</span>
+                <% } else { %>
+                  <span class="px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded text-xs font-bold">Open</span>
+                <% } %>
+                <form action="/manager/tasks/<%= task.id %>?_method=DELETE" method="POST" class="inline">
+                  <button type="submit" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg" title="Delete">
+                    <span class="material-symbols-outlined text-[18px]">delete</span>
+                  </button>
+                </form>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <p class="text-sm text-slate-400 italic">No tasks assigned to this shift.</p>
+      <% } %>
+    </div>
+  </div>
+</main>
+</div>

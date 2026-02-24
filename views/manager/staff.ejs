@@ -1,0 +1,210 @@
+<%- include('../partials/managerSidebar', { activePage: 'staff' }) %>
+
+<main class="flex-1 ml-64">
+  <!-- Top Bar -->
+  <header class="h-16 border-b border-primary/10 bg-white dark:bg-slate-900 px-8 flex items-center justify-between sticky top-0 z-10">
+    <div class="flex items-center gap-4 flex-1">
+      <div class="relative w-full max-w-md">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+        <input class="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border-none focus:ring-2 focus:ring-primary text-sm" placeholder="Search staff or tasks..." type="text"/>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button class="size-10 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500">
+        <span class="material-symbols-outlined">notifications</span>
+      </button>
+      <button class="size-10 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500">
+        <span class="material-symbols-outlined">settings</span>
+      </button>
+      <div class="h-6 w-px bg-primary/10 mx-1"></div>
+      <div class="flex items-center gap-2 pl-2">
+        <div class="text-right">
+          <p class="text-xs font-bold leading-tight">FlowSync Pro</p>
+          <p class="text-[10px] text-primary">Active Subscription</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="p-8 space-y-8">
+    <!-- Header Section -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 class="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Staff Management</h2>
+        <p class="text-slate-500 mt-1">Manage and monitor your team performance and status.</p>
+      </div>
+      <button onclick="document.getElementById('addStaffModal').showModal()" class="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-all shadow-lg shadow-primary/20">
+        <span class="material-symbols-outlined text-[20px]">person_add</span>
+        <span>Add Staff</span>
+      </button>
+    </div>
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-primary/5 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-slate-500 font-medium">Total Staff</span>
+          <span class="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg text-[20px]">groups</span>
+        </div>
+        <p class="text-3xl font-black text-slate-900 dark:text-white"><%= stats ? stats.totalStaff : 0 %></p>
+        <p class="text-xs text-green-500 mt-2 flex items-center gap-1 font-medium">
+          <span class="material-symbols-outlined text-[14px]">trending_up</span>
+          Active staff
+        </p>
+      </div>
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-primary/5 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-slate-500 font-medium">Active</span>
+          <span class="material-symbols-outlined text-emerald-500 bg-emerald-500/10 p-2 rounded-lg text-[20px]">check_circle</span>
+        </div>
+        <p class="text-3xl font-black text-slate-900 dark:text-white"><%= stats ? stats.activeStaff : 0 %></p>
+        <p class="text-xs text-slate-400 mt-2 font-medium">Currently active</p>
+      </div>
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-primary/5 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-slate-500 font-medium">Inactive</span>
+          <span class="material-symbols-outlined text-slate-500 bg-slate-500/10 p-2 rounded-lg text-[20px]">bedtime</span>
+        </div>
+        <p class="text-3xl font-black text-slate-900 dark:text-white"><%= stats ? stats.inactiveStaff : 0 %></p>
+        <p class="text-xs text-slate-400 mt-2 font-medium">Not active</p>
+      </div>
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-primary/5 shadow-sm">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-slate-500 font-medium">Tasks Completed Today</span>
+          <span class="material-symbols-outlined text-amber-500 bg-amber-500/10 p-2 rounded-lg text-[20px]">task_alt</span>
+        </div>
+        <p class="text-3xl font-black text-slate-900 dark:text-white"><%= stats ? stats.totalTasksCompleted : 0 %></p>
+        <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+          <div class="bg-amber-500 h-full w-[75%] rounded-full"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Staff Table -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-primary/5 shadow-sm overflow-hidden">
+      <div class="p-6 border-b border-primary/5">
+        <h3 class="font-bold text-lg">Staff Directory</h3>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead class="bg-slate-50/50 dark:bg-slate-800/50">
+            <tr>
+              <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Name</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Role</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Shift Time</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Tasks Done</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-primary/5">
+            <% if (staff && staff.length > 0) { %>
+              <% staff.forEach(function(s) { %>
+                <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                      <div class="size-8 rounded-full bg-slate-200 flex-shrink-0 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-slate-500">person</span>
+                      </div>
+                      <p class="font-bold text-sm"><%= s.fullName %></p>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400"><%= s.role %></td>
+                  <td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">-</td>
+                  <td class="px-6 py-4">
+                    <% if (s.isActive) { %>
+                      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+                        <span class="size-1.5 rounded-full bg-emerald-500"></span>
+                        Active
+                      </span>
+                    <% } else { %>
+                      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                        <span class="size-1.5 rounded-full bg-slate-400"></span>
+                        Inactive
+                      </span>
+                    <% } %>
+                  </td>
+                  <td class="px-6 py-4 text-sm font-medium"><%= s.tasksCompleted || 0 %></td>
+                  <td class="px-6 py-4 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                      <a href="/manager/staff/<%= s.id %>" class="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors" title="View">
+                        <span class="material-symbols-outlined text-[20px]">visibility</span>
+                      </a>
+                      <a href="/manager/staff/<%= s.id %>/edit" class="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Edit">
+                        <span class="material-symbols-outlined text-[20px]">edit</span>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } else { %>
+              <tr>
+                <td colspan="6" class="px-6 py-8 text-center text-slate-500">
+                  No staff members found.
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+      <div class="p-4 bg-slate-50 dark:bg-slate-800/30 flex items-center justify-between border-t border-primary/5">
+        <p class="text-xs text-slate-500">
+          <% if (pagination) { %>
+            Showing <%= (pagination.page - 1) * 5 + 1 %> - <%= Math.min(pagination.page * 5, pagination.total) %> of <%= pagination.total %> staff members
+          <% } else { %>
+            No staff members
+          <% } %>
+        </p>
+        <div class="flex items-center gap-2">
+          <% if (pagination && pagination.hasPrev) { %>
+            <a href="/manager/staff?page=<%= pagination.page - 1 %>" class="px-3 py-1 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">Previous</a>
+          <% } else { %>
+            <button class="px-3 py-1 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg disabled:opacity-50" disabled>Previous</button>
+          <% } %>
+          <% if (pagination && pagination.hasNext) { %>
+            <a href="/manager/staff?page=<%= pagination.page + 1 %>" class="px-3 py-1 text-xs font-bold bg-primary text-white rounded-lg hover:bg-primary/90">Next</a>
+          <% } else { %>
+            <button class="px-3 py-1 text-xs font-bold bg-slate-300 text-white rounded-lg disabled:opacity-50" disabled>Next</button>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Staff Modal -->
+  <dialog id="addStaffModal" class="modal p-6 rounded-xl border border-slate-200 dark:border-slate-700 backdrop:bg-slate-900/50 w-full max-w-md">
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white">Add New Staff</h3>
+        <button onclick="document.getElementById('addStaffModal').close()" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+          <span class="material-symbols-outlined text-slate-500">close</span>
+        </button>
+      </div>
+      <form action="/manager/staff" method="POST">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
+            <input type="text" name="fullName" required placeholder="Enter full name" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
+            <input type="email" name="email" required placeholder="Enter email address" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Role</label>
+            <select name="role" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+              <option value="STAFF">Staff</option>
+              <option value="MANAGER">Manager</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Password</label>
+            <input type="password" name="password" required placeholder="Enter password" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button type="button" onclick="document.getElementById('addStaffModal').close()" class="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+          <button type="submit" class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">Add Staff</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+</main>
+</div>

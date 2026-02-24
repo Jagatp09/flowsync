@@ -1,0 +1,70 @@
+<%- include('../partials/managerSidebar', { activePage: 'inventory' }) %>
+
+<main class="flex-1 ml-64">
+  <!-- Top Bar -->
+  <header class="h-16 border-b border-primary/10 bg-white dark:bg-slate-900 px-8 flex items-center justify-between sticky top-0 z-10">
+    <div class="flex items-center gap-4">
+      <a href="/manager/inventory" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+        <span class="material-symbols-outlined">arrow_back</span>
+      </a>
+      <h2 class="text-xl font-bold">New Inventory Item</h2>
+    </div>
+  </header>
+  <div class="p-8 max-w-2xl">
+    <!-- Form Card -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+      <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6">Add New Inventory Item</h3>
+
+      <form action="/manager/inventory" method="POST" class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Item Name *</label>
+          <input type="text" name="name" required placeholder="Enter item name"
+            class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+          <select name="category" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+            <option value="">Select Category</option>
+            <option value="Supplies">Supplies</option>
+            <option value="Equipment">Equipment</option>
+            <option value="Cleaning">Cleaning</option>
+            <option value="Food">Food</option>
+            <option value="Paper Goods">Paper Goods</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Quantity on Hand</label>
+            <input type="number" name="quantityOnHand" value="0" min="0"
+              class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Unit</label>
+            <input type="text" name="unit" placeholder="e.g., pcs, kg, boxes"
+              class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Reorder Level</label>
+          <input type="number" name="reorderLevel" value="0" min="0"
+            class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+          <p class="text-xs text-slate-500 mt-1">Alert when quantity falls below this level.</p>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+          <a href="/manager/inventory" class="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-center font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+            Cancel
+          </a>
+          <button type="submit" class="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-bold hover:bg-primary/90 transition-colors">
+            Create Item
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</main>
+</div>

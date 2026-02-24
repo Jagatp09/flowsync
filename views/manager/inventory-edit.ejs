@@ -1,0 +1,118 @@
+<%- include('../partials/managerSidebar', { activePage: 'inventory' }) %>
+
+<main class="flex-1 ml-64">
+  <!-- Top Bar -->
+  <header class="h-16 border-b border-primary/10 bg-white dark:bg-slate-900 px-8 flex items-center justify-between sticky top-0 z-10">
+    <div class="flex items-center gap-4">
+      <a href="/manager/inventory" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+        <span class="material-symbols-outlined">arrow_back</span>
+      </a>
+      <h2 class="text-xl font-bold">Edit Inventory Item</h2>
+    </div>
+  </header>
+  <div class="p-8 space-y-8">
+    <!-- Edit Form -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+      <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6">Item Details</h3>
+
+      <form action="/manager/inventory/<%= item.id %>?_method=PUT" method="POST" class="space-y-6">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Item Name *</label>
+          <input type="text" name="name" value="<%= item.name %>" required
+            class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+          <select name="category" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+            <option value="">Select Category</option>
+            <option value="Supplies" <%= item.category === 'Supplies' ? 'selected' : '' %>>Supplies</option>
+            <option value="Equipment" <%= item.category === 'Equipment' ? 'selected' : '' %>>Equipment</option>
+            <option value="Cleaning" <%= item.category === 'Cleaning' ? 'selected' : '' %>>Cleaning</option>
+            <option value="Food" <%= item.category === 'Food' ? 'selected' : '' %>>Food</option>
+            <option value="Paper Goods" <%= item.category === 'Paper Goods' ? 'selected' : '' %>>Paper Goods</option>
+            <option value="Other" <%= item.category === 'Other' ? 'selected' : '' %>>Other</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Quantity on Hand</label>
+            <input type="number" name="quantityOnHand" value="<%= item.quantityOnHand %>" min="0"
+              class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Unit</label>
+            <input type="text" name="unit" value="<%= item.unit || '' %>" placeholder="e.g., pcs, kg"
+              class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Reorder Level</label>
+          <input type="number" name="reorderLevel" value="<%= item.reorderLevel %>" min="0"
+            class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+          <a href="/manager/inventory" class="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-center font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+            Cancel
+          </a>
+          <button type="submit" class="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-bold hover:bg-primary/90 transition-colors">
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Adjust Stock Section -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+      <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Adjust Stock</h3>
+      <p class="text-sm text-slate-500 mb-4">Current quantity: <span class="font-bold text-slate-900 dark:text-white"><%= item.quantityOnHand %></span> <%= item.unit || '' %></p>
+
+      <form action="/manager/inventory/<%= item.id %>/adjust" method="POST" class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Adjustment (+/-)</label>
+            <input type="number" name="changeAmount" required placeholder="e.g., 10 or -5"
+              class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Reason</label>
+            <input type="text" name="reason" placeholder="e.g., Restocked, Used"
+              class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+          </div>
+        </div>
+        <button type="submit" class="px-4 py-2 bg-emerald-500 text-white rounded-lg font-bold hover:bg-emerald-600 transition-colors">
+          Adjust Stock
+        </button>
+      </form>
+    </div>
+
+    <!-- Recent Activity -->
+    <% if (logs && logs.length > 0) { %>
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Recent Activity</h3>
+        <div class="space-y-3">
+          <% logs.forEach(function(log) { %>
+            <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <div>
+                <p class="text-sm font-bold <%= log.changeAmount >= 0 ? 'text-emerald-600' : 'text-red-600' %>">
+                  <%= log.changeAmount >= 0 ? '+' : '' %><%= log.changeAmount %>
+                </p>
+                <% if (log.reason) { %>
+                  <p class="text-xs text-slate-500"><%= log.reason %></p>
+                <% } %>
+              </div>
+              <div class="text-right">
+                <p class="text-xs text-slate-500"><%= new Date(log.createdAt).toLocaleString() %></p>
+                <p class="text-xs text-slate-400"><%= log.User ? log.User.fullName : 'System' %></p>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</main>
+</div>

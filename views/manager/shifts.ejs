@@ -1,0 +1,150 @@
+<%- include('../partials/managerSidebar', { activePage: 'shifts' }) %>
+
+<main class="flex-1 ml-64">
+  <!-- Top Bar -->
+  <header class="h-16 border-b border-primary/10 bg-white dark:bg-slate-900 px-8 flex items-center justify-between sticky top-0 z-10">
+    <div class="flex items-center gap-4 flex-1">
+      <div class="relative w-full max-w-md">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+        <input class="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border-none focus:ring-2 focus:ring-primary text-sm" placeholder="Search shifts..." type="text"/>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button class="size-10 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500">
+        <span class="material-symbols-outlined">notifications</span>
+      </button>
+    </div>
+  </header>
+  <div class="p-8 space-y-8">
+    <!-- Header Section -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 class="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Shifts</h2>
+        <p class="text-slate-500 mt-1">Manage and monitor shift operations.</p>
+      </div>
+      <a href="/manager/shifts/new" class="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-all shadow-lg shadow-primary/20">
+        <span class="material-symbols-outlined text-[20px]">add</span>
+        <span>New Shift</span>
+      </a>
+    </div>
+
+    <!-- Filters -->
+    <form action="/manager/shifts" method="GET" class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-wrap items-center gap-4">
+      <div class="flex flex-col gap-1">
+        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-1">Status</label>
+        <select name="status" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm">
+          <option value="">All Statuses</option>
+          <option value="SCHEDULED" <%= filters.status === 'SCHEDULED' ? 'selected' : '' %>>Scheduled</option>
+          <option value="ACTIVE" <%= filters.status === 'ACTIVE' ? 'selected' : '' %>>Active</option>
+          <option value="CLOSED" <%= filters.status === 'CLOSED' ? 'selected' : '' %>>Closed</option>
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-1">Date</label>
+        <input type="date" name="date" value="<%= filters.date || '' %>" class="px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm"/>
+      </div>
+      <div class="mt-5">
+        <button type="submit" class="px-6 py-2 bg-slate-800 dark:bg-slate-700 text-white font-bold rounded-lg text-sm hover:bg-slate-700 dark:hover:bg-slate-600">
+          Filter
+        </button>
+      </div>
+    </form>
+
+    <!-- Shifts List -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 text-xs uppercase tracking-wider">
+            <tr>
+              <th class="px-6 py-4 font-bold">Date</th>
+              <th class="px-6 py-4 font-bold">Shift Type</th>
+              <th class="px-6 py-4 font-bold">Status</th>
+              <th class="px-6 py-4 font-bold">Started</th>
+              <th class="px-6 py-4 font-bold">Closed</th>
+              <th class="px-6 py-4 font-bold">Completion</th>
+              <th class="px-6 py-4 font-bold text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+            <% if (shifts && shifts.length > 0) { %>
+              <% shifts.forEach(function(shift) { %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <td class="px-6 py-4 text-sm font-medium">
+                    <%= new Date(shift.shiftDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                  </td>
+                  <td class="px-6 py-4 text-sm">
+                    <% if (shift.shiftType === 'OPENING') { %>
+                      <span class="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded text-xs font-bold">Opening</span>
+                    <% } else if (shift.shiftType === 'MID_SHIFT') { %>
+                      <span class="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 rounded text-xs font-bold">Mid Shift</span>
+                    <% } else if (shift.shiftType === 'CLOSING') { %>
+                      <span class="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded text-xs font-bold">Closing</span>
+                    <% } %>
+                  </td>
+                  <td class="px-6 py-4">
+                    <% if (shift.status === 'PLANNED' || shift.status === 'SCHEDULED') { %>
+                      <span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded text-xs font-bold">Scheduled</span>
+                    <% } else if (shift.status === 'ACTIVE') { %>
+                      <span class="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded text-xs font-bold">Active</span>
+                    <% } else if (shift.status === 'CLOSED') { %>
+                      <span class="px-2 py-1 bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded text-xs font-bold">Closed</span>
+                    <% } %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-slate-500">
+                    <% if (shift.startedAt) { %>
+                      <%= new Date(shift.startedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %>
+                    <% } else { %>
+                      -
+                    <% } %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-slate-500">
+                    <% if (shift.closedAt) { %>
+                      <%= new Date(shift.closedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %>
+                    <% } else { %>
+                      -
+                    <% } %>
+                  </td>
+                  <td class="px-6 py-4 text-sm">
+                    <% if (shift.summary) { %>
+                      <div class="flex items-center gap-2">
+                        <div class="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                          <div class="bg-emerald-500 h-full" style="width: <%= shift.summary.completionPercent %>%"></div>
+                        </div>
+                        <span class="font-bold text-xs"><%= shift.summary.completionPercent %>%</span>
+                      </div>
+                    <% } else { %>
+                      <span class="text-slate-400">-</span>
+                    <% } %>
+                  </td>
+                  <td class="px-6 py-4 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                      <% if (shift.status === 'PLANNED' || shift.status === 'SCHEDULED') { %>
+                        <form action="/manager/shifts/<%= shift.id %>/start?_method=POST" method="POST" class="inline">
+                          <button type="submit" class="px-3 py-1 text-xs font-bold bg-emerald-500 text-white rounded-lg hover:bg-emerald-600">Start</button>
+                        </form>
+                      <% } else if (shift.status === 'ACTIVE') { %>
+                        <form action="/manager/shifts/<%= shift.id %>/close?_method=POST" method="POST" class="inline">
+                          <button type="submit" class="px-3 py-1 text-xs font-bold bg-amber-500 text-white rounded-lg hover:bg-amber-600">Close</button>
+                        </form>
+                      <% } %>
+                      <a href="/manager/shifts/<%= shift.id %>" class="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors" title="View">
+                        <span class="material-symbols-outlined text-[20px]">visibility</span>
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } else { %>
+              <tr>
+                <td colspan="7" class="px-6 py-8 text-center text-slate-500">
+                  No shifts found. Create a new shift to get started.
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+</div>

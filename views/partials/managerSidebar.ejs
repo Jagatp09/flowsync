@@ -1,0 +1,57 @@
+<aside class="w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col fixed h-full">
+  <div class="p-6 flex items-center gap-3">
+    <div class="size-8 bg-primary rounded flex items-center justify-center text-white">
+      <span class="material-symbols-outlined">account_tree</span>
+    </div>
+    <div>
+      <h1 class="text-slate-900 dark:text-white text-lg font-bold leading-none">FlowSync</h1>
+      <p class="text-primary/70 text-xs font-medium">Manager Portal</p>
+    </div>
+  </div>
+  <nav class="flex-1 px-4 space-y-2 mt-4">
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg <%= activePage === 'dashboard' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-primary/5' %> transition-colors" href="/manager/dashboard">
+      <span class="material-symbols-outlined text-[20px]">dashboard</span>
+      <span class="text-sm font-medium">Dashboard</span>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg <%= activePage === 'checklists' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-primary/5' %> transition-colors" href="/manager/checklists">
+      <span class="material-symbols-outlined text-[20px]">checklist</span>
+      <span class="text-sm font-medium">Checklists</span>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg <%= activePage === 'staff' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-primary/5' %> transition-colors" href="/manager/staff">
+      <span class="material-symbols-outlined text-[20px]">group</span>
+      <span class="text-sm font-medium">Staff</span>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg <%= activePage === 'reports' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-primary/5' %> transition-colors" href="/manager/reports">
+      <span class="material-symbols-outlined text-[20px]">bar_chart</span>
+      <span class="text-sm font-medium">Reports</span>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg <%= activePage === 'activity' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-primary/5' %> transition-colors" href="/manager/activity">
+      <span class="material-symbols-outlined text-[20px]">history</span>
+      <span class="text-sm font-medium">Activity</span>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg <%= activePage === 'shifts' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-primary/5' %> transition-colors" href="/manager/shifts">
+      <span class="material-symbols-outlined text-[20px]">schedule</span>
+      <span class="text-sm font-medium">Shifts</span>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg <%= activePage === 'inventory' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-primary/5' %> transition-colors" href="/manager/inventory">
+      <span class="material-symbols-outlined text-[20px]">inventory_2</span>
+      <span class="text-sm font-medium">Inventory</span>
+    </a>
+  </nav>
+  <div class="p-4 border-t border-primary/10">
+    <div class="flex items-center gap-3 px-2 py-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+      <div class="size-8 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
+        <span class="material-symbols-outlined text-primary">person</span>
+      </div>
+      <div class="flex-1 overflow-hidden">
+        <p class="text-sm font-bold truncate"><%= user ? user.fullName : 'Guest' %></p>
+        <p class="text-xs text-slate-500 truncate"><%= user && user.role === 'MANAGER' ? 'Manager' : 'Staff' %></p>
+      </div>
+      <form action="/logout" method="POST" class="inline">
+        <button type="submit" class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded" title="Logout">
+          <span class="material-symbols-outlined text-slate-400 text-[18px]">logout</span>
+        </button>
+      </form>
+    </div>
+  </div>
+</aside>

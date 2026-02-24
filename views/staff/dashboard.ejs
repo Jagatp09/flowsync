@@ -1,0 +1,245 @@
+<div class="flex h-screen overflow-hidden">
+  <%- include('../partials/staffSidebar', { activePage: 'dashboard' }) %>
+
+  <!-- Main Content -->
+  <main class="flex-1 overflow-y-auto">
+    <!-- Header -->
+    <header class="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4 bg-slate-100 dark:bg-slate-800 px-4 py-2 rounded-xl w-96">
+        <span class="material-symbols-outlined text-slate-400">search</span>
+        <input class="bg-transparent border-none focus:ring-0 text-sm w-full" placeholder="Search tasks, docs, or people..." type="text"/>
+      </div>
+      <div class="flex items-center gap-4">
+        <button class="size-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+          <span class="material-symbols-outlined">notifications</span>
+        </button>
+        <div class="h-8 w-px bg-slate-200 dark:bg-slate-800"></div>
+        <a href="/checklists/daily" class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+          <span class="material-symbols-outlined text-[20px]">add</span>
+          New Task
+        </a>
+      </div>
+    </header>
+    <div class="p-8 max-w-7xl mx-auto space-y-8">
+      <!-- Welcome Section -->
+      <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h2 class="text-3xl font-black tracking-tight">Good morning, <%= user ? user.fullName : 'Staff' %>!</h2>
+          <p class="text-slate-500 mt-1">Here's what's happening with your tasks today.</p>
+        </div>
+        <div class="flex gap-3">
+          <div class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
+            <span class="material-symbols-outlined text-primary">calendar_today</span>
+            <span class="text-sm font-medium"><%= new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></span>
+          </div>
+        </div>
+      </div>
+      <!-- Flash Messages -->
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-3">
+          <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">check_circle</span>
+          <p class="text-sm text-emerald-700 dark:text-emerald-300"><%= success %></p>
+        </div>
+      <% } %>
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
+          <span class="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+          <p class="text-sm text-red-700 dark:text-red-300"><%= error %></p>
+        </div>
+      <% } %>
+
+      <!-- Shift & Progress Cards Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <!-- Shift Card -->
+        <div class="lg:col-span-2 <%= attendance && attendance.status === 'CLOCKED_OUT' ? 'bg-slate-600' : 'bg-primary' %> rounded-2xl p-6 text-white shadow-lg <%= attendance && attendance.status === 'CLOCKED_OUT' ? 'bg-slate-600/20' : 'shadow-primary/20' %> flex flex-col justify-between">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-primary-foreground/80 text-sm font-medium opacity-80">Today's Shift</p>
+              <h3 class="text-2xl font-bold mt-1">08:00 - 16:00</h3>
+            </div>
+            <% if (attendance && attendance.status === 'CLOCKED_OUT') { %>
+              <div class="bg-slate-500/50 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                Clocked Out
+              </div>
+            <% } else { %>
+              <div class="bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                Active
+              </div>
+            <% } %>
+          </div>
+          <div class="mt-8 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <% if (attendance && attendance.status === 'CLOCKED_OUT') { %>
+                <div class="size-3 bg-slate-400 rounded-full"></div>
+                <span class="font-medium">Off Duty</span>
+              <% } else { %>
+                <div class="size-3 bg-green-400 rounded-full animate-pulse"></div>
+                <span class="font-medium">On Duty</span>
+              <% } %>
+            </div>
+            <% if (attendance && attendance.status === 'CLOCKED_OUT') { %>
+              <form action="/staff/clock-in" method="POST">
+                <button type="submit" class="bg-white text-primary px-6 py-2 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors">
+                  Clock In
+                </button>
+              </form>
+            <% } else { %>
+              <form action="/staff/clock-out" method="POST">
+                <button type="submit" class="bg-white text-primary px-6 py-2 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors">
+                  Clock Out
+                </button>
+              </form>
+            <% } %>
+          </div>
+        </div>
+        <!-- Next Shift Date (shown when clocked out) -->
+        <% if (attendance && attendance.status === 'CLOCKED_OUT') { %>
+        <div class="lg:col-span-2 bg-slate-100 dark:bg-slate-800 rounded-2xl p-6 flex flex-col justify-between">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-slate-500 text-sm font-medium">Next Shift Date</p>
+              <h3 class="text-2xl font-bold mt-1 text-slate-700 dark:text-slate-200">
+                <% if (nextShiftDate) { %>
+                  <%= new Date(nextShiftDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }) %>
+                <% } else { %>
+                  Tomorrow
+                <% } %>
+              </h3>
+            </div>
+            <div class="bg-slate-200 dark:bg-slate-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+              <span class="text-[10px]">(Demo)</span>
+            </div>
+          </div>
+        </div>
+        <% } %>
+        <!-- Stat Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 <%= attendance && attendance.status === 'CLOCKED_OUT' ? 'lg:col-span-2' : 'lg:col-span-2' %> gap-4">
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm">
+            <p class="text-slate-500 text-sm font-medium">Assigned</p>
+            <p class="text-3xl font-black mt-2"><%= stats.total %></p>
+            <div class="mt-4 h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div class="h-full bg-primary" style="width: <%= stats.percentage %>%"></div>
+            </div>
+          </div>
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm">
+            <p class="text-slate-500 text-sm font-medium">Completed</p>
+            <p class="text-3xl font-black mt-2 text-green-600"><%= stats.completed %></p>
+            <div class="mt-4 h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div class="h-full bg-green-500" style="width: <%= stats.percentage %>%"></div>
+            </div>
+          </div>
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-sm">
+            <p class="text-slate-500 text-sm font-medium">Remaining</p>
+            <p class="text-3xl font-black mt-2 text-amber-500"><%= stats.remaining %></p>
+            <div class="mt-4 h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div class="h-full bg-amber-500" style="width: <%= 100 - stats.percentage %>%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <!-- Tasks Summary -->
+        <div class="xl:col-span-2 space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-bold tracking-tight">Today's Tasks</h3>
+            <a href="/checklists/daily" class="text-primary text-sm font-semibold hover:underline">View All</a>
+          </div>
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm p-6">
+            <div class="text-center py-8">
+              <span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-4">assignment</span>
+              <p class="text-slate-500 mb-4">You have <%= stats.total %> tasks assigned for today.</p>
+              <p class="text-slate-500"><%= stats.completed %> completed, <%= stats.remaining %> remaining.</p>
+              <a href="/checklists/daily" class="inline-block mt-4 bg-primary text-white px-6 py-2 rounded-lg text-sm font-semibold">
+                View My Tasks
+              </a>
+            </div>
+          </div>
+
+          <!-- My Assigned Tasks -->
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-bold tracking-tight">My Assigned Tasks</h3>
+          </div>
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+            <% if (myTasks && myTasks.length > 0) { %>
+              <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                <% myTasks.forEach(function(task) { %>
+                  <div class="p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3 flex-1">
+                      <% if (task.priority === 'HIGH') { %>
+                        <span class="px-2 py-1 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded text-xs font-bold">HIGH</span>
+                      <% } else if (task.priority === 'MEDIUM') { %>
+                        <span class="px-2 py-1 bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 rounded text-xs font-bold">MEDIUM</span>
+                      <% } else { %>
+                        <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded text-xs font-bold">LOW</span>
+                      <% } %>
+                      <div>
+                        <p class="font-semibold text-slate-900 dark:text-white"><%= task.customTaskText || 'Task' %></p>
+                        <p class="text-xs text-slate-500">
+                          <% if (task.Shift) { %>
+                            <%= task.Shift.shiftType %> - <%= new Date(task.Shift.shiftDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
+                          <% } %>
+                        </p>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <% if (task.status === 'DONE') { %>
+                        <span class="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded text-xs font-bold">Done</span>
+                      <% } else { %>
+                        <form action="/staff/tasks/<%= task.id %>?_method=PUT" method="POST" class="inline">
+                          <input type="hidden" name="status" value="DONE"/>
+                          <button type="submit" class="px-3 py-1 bg-primary text-white rounded text-xs font-bold hover:bg-primary/90">Mark Complete</button>
+                        </form>
+                      <% } %>
+                    </div>
+                  </div>
+                <% }); %>
+              </div>
+            <% } else { %>
+              <div class="p-6 text-center">
+                <span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-4">task_alt</span>
+                <p class="text-slate-500">No tasks assigned to you.</p>
+              </div>
+            <% } %>
+          </div>
+        </div>
+        <!-- Recent Activity -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-bold tracking-tight">Recent Activity</h3>
+            <button class="text-slate-400 hover:text-primary transition-colors">
+              <span class="material-symbols-outlined">more_horiz</span>
+            </button>
+          </div>
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+            <div class="space-y-6">
+              <% if (recentTasks && recentTasks.length > 0) { %>
+                <% recentTasks.forEach(function(task) { %>
+                  <div class="flex gap-4">
+                    <div class="mt-1 size-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600">
+                      <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                    </div>
+                    <div class="flex-1">
+                      <p class="text-sm font-semibold">Task completed: <%= task.itemText %></p>
+                      <p class="text-xs text-slate-500 mt-0.5">
+                        <% if (task.completedAt) { %>
+                          <%= new Date(task.completedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %>
+                        <% } else { %>
+                          Recently
+                        <% } %>
+                      </p>
+                    </div>
+                  </div>
+                <% }); %>
+              <% } else { %>
+                <p class="text-sm text-slate-500 text-center py-4">No recent activity</p>
+              <% } %>
+            </div>
+            <a href="/checklists/daily" class="w-full mt-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors inline-block text-center">
+              View Full Log
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>

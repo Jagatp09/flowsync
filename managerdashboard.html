@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FlowSync Store Manager Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display">
+<div class="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+<!-- Top Navigation Bar -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 py-3 lg:px-10">
+<div class="flex items-center gap-4 text-primary">
+<div class="size-8 flex items-center justify-center bg-primary rounded-lg text-white">
+<span class="material-symbols-outlined">sync_alt</span>
+</div>
+<h2 class="text-slate-900 dark:text-slate-100 text-xl font-bold leading-tight tracking-tight">FlowSync</h2>
+</div>
+<div class="flex flex-1 justify-end gap-4 items-center">
+<div class="hidden md:flex gap-2">
+<button class="flex items-center justify-center rounded-lg h-10 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="flex items-center justify-center rounded-lg h-10 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-3 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<div class="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800">
+<div class="text-right hidden sm:block">
+<p class="text-sm font-bold leading-none">Alex Johnson</p>
+<p class="text-xs text-slate-500 mt-1">Store Manager</p>
+</div>
+<div class="bg-primary/10 border border-primary/20 aspect-square bg-cover rounded-full size-10 flex items-center justify-center overflow-hidden" data-alt="User profile avatar placeholder">
+<span class="material-symbols-outlined text-primary">person</span>
+</div>
+</div>
+</div>
+</header>
+<div class="flex flex-1">
+<!-- Sidebar Navigation -->
+<aside class="hidden lg:flex w-64 flex-col border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 gap-6">
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary text-white font-medium" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors" href="#">
+<span class="material-symbols-outlined">fact_check</span>
+<span>Checklists</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors" href="#">
+<span class="material-symbols-outlined">group</span>
+<span>Staff</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span>Reports</span>
+</a>
+</div>
+<div class="mt-auto border-t border-slate-200 dark:border-slate-800 pt-6">
+<div class="bg-primary/5 rounded-xl p-4">
+<p class="text-xs font-bold text-primary uppercase tracking-wider mb-2">Operational Tip</p>
+<p class="text-xs text-slate-600 dark:text-slate-400">Complete morning prep by 8 AM to boost efficiency score.</p>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col p-6 lg:p-10 gap-8 overflow-y-auto max-w-7xl mx-auto w-full">
+<!-- Dashboard Header & Filters -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<div>
+<h1 class="text-3xl font-black tracking-tight">Dashboard</h1>
+<p class="text-slate-500 text-sm mt-1">Welcome back, here is what's happening today.</p>
+</div>
+<div class="flex flex-wrap gap-3">
+<div class="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm">
+<span class="material-symbols-outlined text-slate-400 text-lg">calendar_today</span>
+<span class="font-medium">Oct 24, 2023</span>
+<span class="material-symbols-outlined text-slate-400 text-lg">expand_more</span>
+</div>
+<button class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors shadow-sm">
+<span class="material-symbols-outlined text-lg">add</span>
+<span>Create Checklist</span>
+</button>
+</div>
+</div>
+<!-- Summary Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-emerald-600">
+<span class="material-symbols-outlined">task_alt</span>
+</div>
+<span class="text-emerald-500 text-xs font-bold flex items-center">+5.2%</span>
+</div>
+<p class="text-slate-500 text-sm font-medium">Checklist Completion</p>
+<h3 class="text-3xl font-bold mt-1">85%</h3>
+</div>
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg text-amber-600">
+<span class="material-symbols-outlined">pending_actions</span>
+</div>
+<span class="text-amber-500 text-xs font-bold flex items-center">-2</span>
+</div>
+<p class="text-slate-500 text-sm font-medium">Pending Tasks</p>
+<h3 class="text-3xl font-bold mt-1">12</h3>
+</div>
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600">
+<span class="material-symbols-outlined">group</span>
+</div>
+<span class="text-slate-400 text-xs font-medium">Active Now</span>
+</div>
+<p class="text-slate-500 text-sm font-medium">On-duty Staff</p>
+<h3 class="text-3xl font-bold mt-1">8</h3>
+</div>
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<div class="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg text-purple-600">
+<span class="material-symbols-outlined">timer</span>
+</div>
+<span class="text-purple-500 text-xs font-bold flex items-center">+12m</span>
+</div>
+<p class="text-slate-500 text-sm font-medium">Avg. Task Time</p>
+<h3 class="text-3xl font-bold mt-1">18m</h3>
+</div>
+</div>
+<!-- Main Section: Table & Sidebar Feed -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Checklist Progress Table -->
+<div class="lg:col-span-2 flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<h3 class="text-lg font-bold">Checklist Progress</h3>
+<button class="text-primary text-sm font-semibold hover:underline">View All</button>
+</div>
+<div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+<th class="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Shift</th>
+<th class="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Tasks Completed</th>
+<th class="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Completion %</th>
+<th class="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Status</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+<td class="px-6 py-4 font-medium">Morning Prep</td>
+<td class="px-6 py-4">42 / 45</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-24 bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full" style="width: 93%"></div>
+</div>
+<span class="text-sm">93%</span>
+</div>
+</td>
+<td class="px-6 py-4"><span class="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded">On Track</span></td>
+</tr>
+<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+<td class="px-6 py-4 font-medium">Midday Handover</td>
+<td class="px-6 py-4">12 / 12</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-24 bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full" style="width: 100%"></div>
+</div>
+<span class="text-sm">100%</span>
+</div>
+</td>
+<td class="px-6 py-4"><span class="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded">Completed</span></td>
+</tr>
+<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+<td class="px-6 py-4 font-medium">Evening Closing</td>
+<td class="px-6 py-4">8 / 30</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-24 bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+<div class="bg-amber-500 h-full" style="width: 26%"></div>
+</div>
+<span class="text-sm">26%</span>
+</div>
+</td>
+<td class="px-6 py-4"><span class="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded">In Progress</span></td>
+</tr>
+<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+<td class="px-6 py-4 font-medium">Inventory Audit</td>
+<td class="px-6 py-4">0 / 15</td>
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-24 bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+<div class="bg-slate-300 dark:bg-slate-600 h-full" style="width: 0%"></div>
+</div>
+<span class="text-sm">0%</span>
+</div>
+</td>
+<td class="px-6 py-4"><span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold rounded">Scheduled</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Recent Activity Feed -->
+<div class="flex flex-col gap-4">
+<h3 class="text-lg font-bold">Recent Activity</h3>
+<div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col gap-6">
+<div class="flex gap-4">
+<div class="flex-shrink-0 size-10 rounded-full bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-xl">person</span>
+</div>
+<div>
+<p class="text-sm"><span class="font-bold">John Doe</span> completed <span class="font-medium text-primary">Morning Prep</span></p>
+<p class="text-xs text-slate-500 mt-1">15 minutes ago</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex-shrink-0 size-10 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-amber-600 text-xl">warning</span>
+</div>
+<div>
+<p class="text-sm"><span class="font-bold">Sarah Smith</span> flagged <span class="font-medium text-primary">Fridge Temp Check</span></p>
+<p class="text-xs text-slate-500 mt-1">1 hour ago</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex-shrink-0 size-10 rounded-full bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-xl">person</span>
+</div>
+<div>
+<p class="text-sm"><span class="font-bold">Mike Ross</span> started <span class="font-medium text-primary">Evening Closing</span></p>
+<p class="text-xs text-slate-500 mt-1">2 hours ago</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="flex-shrink-0 size-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+<span class="material-symbols-outlined text-emerald-600 text-xl">verified</span>
+</div>
+<div>
+<p class="text-sm"><span class="font-bold">Alex Johnson</span> approved <span class="font-medium text-primary">Inventory Audit</span></p>
+<p class="text-xs text-slate-500 mt-1">4 hours ago</p>
+</div>
+</div>
+<button class="mt-4 w-full py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                            Manage All Activity
+                        </button>
+</div>
+</div>
+</div><section class="flex flex-col gap-4 mt-4">
+<div class="flex items-center justify-between">
+<h3 class="text-lg font-bold text-slate-900">Staff Scheduling</h3>
+<button class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors shadow-sm">
+<span class="material-symbols-outlined text-lg">edit_calendar</span>
+<span>Manage Schedule</span>
+</button>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+<div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+<div class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">person</span>
+</div>
+<div>
+<p class="text-sm font-bold">John Doe</p>
+<p class="text-xs text-slate-500">08:00 AM - 04:00 PM</p>
+<p class="text-[10px] font-bold text-primary uppercase mt-1">Morning Lead</p>
+<div class="flex items-center gap-1.5 mt-2"><span class="size-1.5 rounded-full bg-emerald-500"></span><span class="text-[10px] font-medium text-emerald-600">Clocked In</span></div></div>
+</div>
+<div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+<div class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">person</span>
+</div>
+<div>
+<p class="text-sm font-bold">Sarah Smith</p>
+<p class="text-xs text-slate-500">10:00 AM - 06:00 PM</p>
+<p class="text-[10px] font-bold text-primary uppercase mt-1">Inventory</p>
+<div class="flex items-center gap-1.5 mt-2"><span class="size-1.5 rounded-full bg-emerald-500"></span><span class="text-[10px] font-medium text-emerald-600">Clocked In</span></div></div>
+</div>
+<div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+<div class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">person</span>
+</div>
+<div>
+<p class="text-sm font-bold">Mike Ross</p>
+<p class="text-xs text-slate-500">02:00 PM - 10:00 PM</p>
+<p class="text-[10px] font-bold text-primary uppercase mt-1">Closing Lead</p>
+<div class="flex items-center gap-1.5 mt-2"><span class="size-1.5 rounded-full bg-red-500"></span><span class="text-[10px] font-medium text-red-600">Clocked Out</span></div></div>
+</div>
+<div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+<div class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">person</span>
+</div>
+<div>
+<p class="text-sm font-bold">Alex Johnson</p>
+<p class="text-xs text-slate-500">09:00 AM - 05:00 PM</p>
+<p class="text-[10px] font-bold text-primary uppercase mt-1">Manager</p>
+<div class="flex items-center gap-1.5 mt-2"><span class="size-1.5 rounded-full bg-emerald-500"></span><span class="text-[10px] font-medium text-emerald-600">Clocked In</span></div></div>
+</div>
+</div>
+</section>
+<!-- About Section -->
+<section class="mt-8 border-t border-slate-200 dark:border-slate-800 pt-10 pb-12">
+<div class="max-w-3xl">
+<h4 class="text-sm font-bold text-primary uppercase tracking-widest mb-4">Operational Intelligence</h4>
+<p class="text-slate-600 dark:text-slate-400 leading-relaxed text-sm md:text-base">
+                        This dashboard is designed for store managers to quickly monitor daily operations. It features summary cards for at-a-glance status, a date filter for historical review, and a detailed progress table to track shift efficiency. The activity feed and quick actions ensure staff accountability and streamlined task management, making it an effective tool for operational oversight in a student-led programming project.
+                    </p>
+</div>
+</section>
+</main>
+</div>
+</div>
+</body></html>

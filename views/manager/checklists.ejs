@@ -1,0 +1,336 @@
+<%- include('../partials/managerSidebar', { activePage: 'checklists' }) %>
+
+<main class="flex-1 ml-64">
+  <!-- Top Bar -->
+  <header class="h-16 border-b border-primary/10 bg-white dark:bg-slate-900 px-8 flex items-center justify-between sticky top-0 z-10">
+    <div class="flex items-center gap-4 flex-1">
+      <div class="relative w-full max-w-md">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+        <input class="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border-none focus:ring-2 focus:ring-primary text-sm" placeholder="Search checklists..." type="text" id="searchChecklists"/>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button class="size-10 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500">
+        <span class="material-symbols-outlined">notifications</span>
+      </button>
+      <button class="size-10 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500">
+        <span class="material-symbols-outlined">settings</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="p-8 space-y-8">
+    <!-- Flash Messages -->
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-3">
+        <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">check_circle</span>
+        <p class="text-sm text-emerald-700 dark:text-emerald-300"><%= success %></p>
+      </div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
+        <span class="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+        <p class="text-sm text-red-700 dark:text-red-300"><%= error %></p>
+      </div>
+    <% } %>
+
+    <!-- Header Section -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 class="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Checklists</h2>
+        <p class="text-slate-500 mt-1">Create and manage shift checklists.</p>
+      </div>
+      <button onclick="document.getElementById('createChecklistModal').showModal()" class="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-all shadow-lg shadow-primary/20">
+        <span class="material-symbols-outlined text-[20px]">add</span>
+        <span>Create Checklist</span>
+      </button>
+    </div>
+
+    <!-- Checklist Summary by Shift -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <% var morningChecklists = checklists.filter(c => c.shiftType === 'MORNING'); %>
+      <% var middayChecklists = checklists.filter(c => c.shiftType === 'MIDDAY'); %>
+      <% var eveningChecklists = checklists.filter(c => c.shiftType === 'EVENING'); %>
+
+      <!-- Morning Shift -->
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+              <span class="material-symbols-outlined text-amber-600">wb_sunny</span>
+            </div>
+            <h3 class="font-bold text-lg">Morning Shift</h3>
+          </div>
+          <span class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full"><%= morningChecklists.length %> checklists</span>
+        </div>
+        <p class="text-sm text-slate-500 mb-4">Opening procedures and morning prep tasks.</p>
+        <div class="space-y-3">
+          <% morningChecklists.slice(0, 3).forEach(function(cl) { %>
+            <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <span class="text-sm font-medium"><%= cl.title %></span>
+              <span class="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full"><%= cl.items ? cl.items.length : 0 %> tasks</span>
+            </div>
+          <% }); %>
+          <% if (morningChecklists.length === 0) { %>
+            <p class="text-sm text-slate-400">No morning checklists</p>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Midday Shift -->
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+              <span class="material-symbols-outlined text-blue-600">light_mode</span>
+            </div>
+            <h3 class="font-bold text-lg">Midday Shift</h3>
+          </div>
+          <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"><%= middayChecklists.length %> checklists</span>
+        </div>
+        <p class="text-sm text-slate-500 mb-4">Midday operations and handover tasks.</p>
+        <div class="space-y-3">
+          <% middayChecklists.slice(0, 3).forEach(function(cl) { %>
+            <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <span class="text-sm font-medium"><%= cl.title %></span>
+              <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full"><%= cl.items ? cl.items.length : 0 %> tasks</span>
+            </div>
+          <% }); %>
+          <% if (middayChecklists.length === 0) { %>
+            <p class="text-sm text-slate-400">No midday checklists</p>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- Evening Shift -->
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg">
+              <span class="material-symbols-outlined text-indigo-600">nights_stay</span>
+            </div>
+            <h3 class="font-bold text-lg">Evening Shift</h3>
+          </div>
+          <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"><%= eveningChecklists.length %> checklists</span>
+        </div>
+        <p class="text-sm text-slate-500 mb-4">Closing procedures and end of day tasks.</p>
+        <div class="space-y-3">
+          <% eveningChecklists.slice(0, 3).forEach(function(cl) { %>
+            <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <span class="text-sm font-medium"><%= cl.title %></span>
+              <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full"><%= cl.items ? cl.items.length : 0 %> tasks</span>
+            </div>
+          <% }); %>
+          <% if (eveningChecklists.length === 0) { %>
+            <p class="text-sm text-slate-400">No evening checklists</p>
+          <% } %>
+        </div>
+      </div>
+    </div>
+
+    <!-- All Checklists Table -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div class="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+        <h3 class="font-bold text-lg">All Checklists</h3>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left" id="checklistTable">
+          <thead class="bg-slate-50/50 dark:bg-slate-800/50">
+            <tr>
+              <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Checklist Name</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Shift Type</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Tasks</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Completion</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+            <% checklists.forEach(function(checklist) { %>
+              <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                <td class="px-6 py-4 font-medium"><%= checklist.title %></td>
+                <td class="px-6 py-4">
+                  <% if (checklist.shiftType === 'MORNING') { %>
+                    <span class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded">Morning</span>
+                  <% } else if (checklist.shiftType === 'MIDDAY') { %>
+                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">Midday</span>
+                  <% } else if (checklist.shiftType === 'EVENING') { %>
+                    <span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded">Evening</span>
+                  <% } else { %>
+                    <span class="px-2 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded"><%= checklist.shiftType %></span>
+                  <% } %>
+                </td>
+                <td class="px-6 py-4"><%= checklist.items ? checklist.items.length : 0 %></td>
+                <td class="px-6 py-4">
+                  <div class="flex items-center gap-3">
+                    <div class="w-20 bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                      <div class="bg-emerald-500 h-full" style="width: <%= checklist.percent || 0 %>%"></div>
+                    </div>
+                    <span class="text-sm"><%= checklist.percent || 0 %>%</span>
+                  </div>
+                </td>
+                <td class="px-6 py-4">
+                  <% if (checklist.isActive) { %>
+                    <span class="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded">Active</span>
+                  <% } else { %>
+                    <span class="px-2 py-1 bg-slate-100 text-slate-700 text-xs font-bold rounded">Inactive</span>
+                  <% } %>
+                </td>
+                <td class="px-6 py-4 text-right">
+                  <div class="flex items-center justify-end gap-2">
+                    <a href="/manager/checklists/<%= checklist.id %>" class="p-2 text-primary hover:bg-primary/5 rounded-lg" title="View">
+                      <span class="material-symbols-outlined text-[20px]">visibility</span>
+                    </a>
+                    <button onclick="openEditChecklistModal('<%= checklist.id %>', '<%= checklist.title %>', '<%= checklist.shiftType %>', '<%= checklist.description || '' %>', '<%= checklist.isActive %>')" class="p-2 text-primary hover:bg-primary/5 rounded-lg" title="Edit">
+                      <span class="material-symbols-outlined text-[20px]">edit</span>
+                    </button>
+                    <button onclick="confirmDeleteChecklist('<%= checklist.id %>', '<%= checklist.title %>')" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Delete">
+                      <span class="material-symbols-outlined text-[20px]">delete</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            <% }); %>
+            <% if (checklists.length === 0) { %>
+              <tr>
+                <td colspan="6" class="px-6 py-8 text-center text-slate-500">
+                  No checklists found. Create your first checklist to get started.
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Create Checklist Modal -->
+<dialog id="createChecklistModal" class="modal p-6 rounded-xl border border-slate-200 dark:border-slate-700 backdrop:bg-slate-900/50 w-full max-w-md">
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-bold text-slate-900 dark:text-white">Create Checklist</h3>
+      <button onclick="document.getElementById('createChecklistModal').close()" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+        <span class="material-symbols-outlined text-slate-500">close</span>
+      </button>
+    </div>
+    <form action="/manager/checklists" method="POST">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Title</label>
+          <input type="text" name="title" required placeholder="Enter checklist title" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Shift Type</label>
+          <select name="shiftType" required class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+            <option value="MORNING">Morning</option>
+            <option value="MIDDAY">Midday</option>
+            <option value="EVENING">Evening</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
+          <textarea name="description" rows="2" placeholder="Optional description" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"></textarea>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" name="isActive" id="isActiveCreate" checked class="w-4 h-4 text-primary rounded border-slate-300"/>
+          <label for="isActiveCreate" class="text-sm text-slate-700 dark:text-slate-300">Active</label>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button type="button" onclick="document.getElementById('createChecklistModal').close()" class="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+        <button type="submit" class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">Create</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- Edit Checklist Modal -->
+<dialog id="editChecklistModal" class="modal p-6 rounded-xl border border-slate-200 dark:border-slate-700 backdrop:bg-slate-900/50 w-full max-w-md">
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-bold text-slate-900 dark:text-white">Edit Checklist</h3>
+      <button onclick="document.getElementById('editChecklistModal').close()" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+        <span class="material-symbols-outlined text-slate-500">close</span>
+      </button>
+    </div>
+    <form id="editChecklistForm" method="POST">
+      <input type="hidden" name="_method" value="PUT"/>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Title</label>
+          <input type="text" name="title" id="editTitle" required class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Shift Type</label>
+          <select name="shiftType" id="editShiftType" required class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+            <option value="MORNING">Morning</option>
+            <option value="MIDDAY">Midday</option>
+            <option value="EVENING">Evening</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Description</label>
+          <textarea name="description" id="editDescription" rows="2" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"></textarea>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="checkbox" name="isActive" id="editIsActive" class="w-4 h-4 text-primary rounded border-slate-300"/>
+          <label for="editIsActive" class="text-sm text-slate-700 dark:text-slate-300">Active</label>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button type="button" onclick="document.getElementById('editChecklistModal').close()" class="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+        <button type="submit" class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">Update</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- Delete Confirmation Modal -->
+<dialog id="deleteChecklistModal" class="modal p-6 rounded-xl border border-slate-200 dark:border-slate-700 backdrop:bg-slate-900/50 w-full max-w-md">
+  <div class="space-y-4">
+    <div class="flex items-center gap-3">
+      <div class="p-2 bg-red-100 dark:bg-red-900/30 rounded-full">
+        <span class="material-symbols-outlined text-red-600 dark:text-red-400">warning</span>
+      </div>
+      <h3 class="text-lg font-bold text-slate-900 dark:text-white">Delete Checklist</h3>
+    </div>
+    <p class="text-slate-600 dark:text-slate-400">Are you sure you want to delete "<span id="deleteChecklistName"></span>"? This action cannot be undone.</p>
+    <form id="deleteChecklistForm" method="POST">
+      <input type="hidden" name="_method" value="DELETE"/>
+      <div class="flex gap-3 mt-6">
+        <button type="button" onclick="document.getElementById('deleteChecklistModal').close()" class="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+        <button type="submit" class="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Delete</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<script>
+function openEditChecklistModal(id, title, shiftType, description, isActive) {
+  document.getElementById('editTitle').value = title;
+  document.getElementById('editShiftType').value = shiftType;
+  document.getElementById('editDescription').value = description;
+  document.getElementById('editIsActive').checked = (isActive === 'true');
+  document.getElementById('editChecklistForm').action = '/manager/checklists/' + id + '?_method=PUT';
+  document.getElementById('editChecklistModal').showModal();
+}
+
+function confirmDeleteChecklist(id, title) {
+  document.getElementById('deleteChecklistName').textContent = title;
+  document.getElementById('deleteChecklistForm').action = '/manager/checklists/' + id + '?_method=DELETE';
+  document.getElementById('deleteChecklistModal').showModal();
+}
+
+// Search functionality
+document.getElementById('searchChecklists').addEventListener('input', function(e) {
+  const searchTerm = e.target.value.toLowerCase();
+  const table = document.getElementById('checklistTable');
+  const rows = table.querySelectorAll('tbody tr');
+
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(searchTerm) ? '' : 'none';
+  });
+});
+</script>

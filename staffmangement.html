@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FlowSync - Staff Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display">
+<div class="flex min-h-screen">
+<!-- SideNavBar -->
+<aside class="w-64 border-r border-primary/10 bg-white dark:bg-slate-900 flex flex-col fixed h-full">
+<div class="p-6 flex items-center gap-3">
+<div class="size-8 bg-primary rounded flex items-center justify-center text-white">
+<span class="material-symbols-outlined">account_tree</span>
+</div>
+<div>
+<h1 class="text-slate-900 dark:text-white text-lg font-bold leading-none">FlowSync</h1>
+<p class="text-primary/70 text-xs font-medium">SaaS Management</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-2 mt-4">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">checklist</span>
+<span class="text-sm font-medium">Checklists</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg bg-primary/10 text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px] fill-[1]">group</span>
+<span class="text-sm font-bold">Staff</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/5 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">bar_chart</span>
+<span class="text-sm font-medium">Reports</span>
+</a>
+</nav>
+<div class="p-4 border-t border-primary/10">
+<div class="flex items-center gap-3 px-2 py-3 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+<div class="size-8 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden">
+<img alt="User Profile" class="w-full h-full" data-alt="User profile avatar of Alex Johnson" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCBsTiJWgrUiAovQDAPzoJI6-JM5I3XqxVt3YDxuaYS1rlpY1YdC8msBfjexahM3Q-VL6NuOh3ABOFFiyEUX28vdbEE4gnbJNV8yH5qS3LLwWqGk2MKGO9KoYaKP68NyFmiC9m9XWH1SDK8DezTIstw_GMpcNH0BYdAZz8MBEDCR_5-XasS7-WpYib-TFoesW3jnxkrS8V-9A6ap5MFHOrq2iX2fW1LoPFr_f-rywH87DAb1cJDIn6ujz5DKTkbX72o7-avQjAPcok"/>
+</div>
+<div class="flex-1 overflow-hidden">
+<p class="text-sm font-bold truncate">Alex Johnson</p>
+<p class="text-xs text-slate-500 truncate">Admin Account</p>
+</div>
+<span class="material-symbols-outlined text-slate-400 text-[18px]">more_vert</span>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 ml-64">
+<!-- Top Bar -->
+<header class="h-16 border-b border-primary/10 bg-white dark:bg-slate-900 px-8 flex items-center justify-between sticky top-0 z-10">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+<input class="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border-none focus:ring-2 focus:ring-primary text-sm" placeholder="Search staff or tasks..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<button class="size-10 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="size-10 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="h-6 w-px bg-primary/10 mx-1"></div>
+<div class="flex items-center gap-2 pl-2">
+<div class="text-right">
+<p class="text-xs font-bold leading-tight">FlowSync Pro</p>
+<p class="text-[10px] text-primary">Active Subscription</p>
+</div>
+</div>
+</div>
+</header>
+<div class="p-8 space-y-8">
+<!-- Header Section -->
+<div class="flex flex-wrap items-center justify-between gap-4">
+<div>
+<h2 class="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Staff Management</h2>
+<p class="text-slate-500 mt-1">Manage and monitor your team performance and status.</p>
+</div>
+<button class="bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-all shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-[20px]">person_add</span>
+<span>Add Staff</span>
+</button>
+</div>
+<!-- Stats Overview -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-primary/5 shadow-sm">
+<div class="flex items-center justify-between mb-2">
+<span class="text-slate-500 font-medium">Total Staff</span>
+<span class="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg text-[20px]">groups</span>
+</div>
+<p class="text-3xl font-black text-slate-900 dark:text-white">24</p>
+<p class="text-xs text-green-500 mt-2 flex items-center gap-1 font-medium">
+<span class="material-symbols-outlined text-[14px]">trending_up</span>
+                            +2 from last month
+                        </p>
+</div>
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-primary/5 shadow-sm">
+<div class="flex items-center justify-between mb-2">
+<span class="text-slate-500 font-medium">On Duty</span>
+<span class="material-symbols-outlined text-emerald-500 bg-emerald-500/10 p-2 rounded-lg text-[20px]">check_circle</span>
+</div>
+<p class="text-3xl font-black text-slate-900 dark:text-white">8</p>
+<p class="text-xs text-slate-400 mt-2 font-medium">Currently active</p>
+</div>
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-primary/5 shadow-sm">
+<div class="flex items-center justify-between mb-2">
+<span class="text-slate-500 font-medium">Off Duty</span>
+<span class="material-symbols-outlined text-slate-500 bg-slate-500/10 p-2 rounded-lg text-[20px]">bedtime</span>
+</div>
+<p class="text-3xl font-black text-slate-900 dark:text-white">16</p>
+<p class="text-xs text-slate-400 mt-2 font-medium">Scheduled for later</p>
+</div>
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-primary/5 shadow-sm">
+<div class="flex items-center justify-between mb-2">
+<span class="text-slate-500 font-medium">Tasks Completed Today</span>
+<span class="material-symbols-outlined text-amber-500 bg-amber-500/10 p-2 rounded-lg text-[20px]">task_alt</span>
+</div>
+<p class="text-3xl font-black text-slate-900 dark:text-white">142</p>
+<div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+<div class="bg-amber-500 h-full w-[75%] rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- Staff Table -->
+<div class="bg-white dark:bg-slate-900 rounded-xl border border-primary/5 shadow-sm overflow-hidden">
+<div class="p-6 border-b border-primary/5 flex items-center justify-between">
+<h3 class="font-bold text-lg">Staff Directory</h3>
+<div class="flex items-center gap-2">
+<button class="p-2 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+</button>
+<button class="p-2 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800">
+<span class="material-symbols-outlined text-[18px]">download</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-slate-50/50 dark:bg-slate-800/50">
+<tr>
+<th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Name</th>
+<th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Role</th>
+<th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Shift Time</th>
+<th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+<th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider">Tasks Done</th>
+<th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-wider text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-primary/5">
+<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded-full bg-slate-200 flex-shrink-0">
+<img alt="Staff Member" class="w-full h-full" data-alt="Profile photo of Jordan Smith" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZw_rqmGgpQP6aUV5jE5XpY7t4s7Dhm1oM11MNi2HFoiWdZEdMrGUdHA4GkF8XiUud6IQ5wsbInHTH65BxLdifTGfnsAgxXDTpEofN6UAxqZ5PXoSxQzDoVZl741cMyj6UFPHaPW_FN9154EV57rad7WPAOalgTEBZpRFaXpfdcKtbk_IGw6QJsAf9bJyg8mwHOIT5FWMywHAQfWhnY5umQJnLZglYrkrr-vFDuFbBiP0c4rxJL9r3LswLLMbdGel8XHVmX8JH6OE"/>
+</div>
+<p class="font-bold text-sm">Jordan Smith</p>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">Supervisor</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">08:00 - 16:00</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+<span class="size-1.5 rounded-full bg-emerald-500"></span>
+                                            On Duty
+                                        </span>
+</td>
+<td class="px-6 py-4 text-sm font-medium">12</td>
+<td class="px-6 py-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors" title="View">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Edit">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded-full bg-slate-200 flex-shrink-0">
+<img alt="Staff Member" class="w-full h-full" data-alt="Profile photo of Taylor Reed" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCY3qoNBgPTF51ekoT-F6neXYx4OVCbXGQpUki02vH3ycud3A5SmOFl7kRFXo3WbKmi9hyFRvyznxeR8vKgi5s5c97rWWNzpfzz6RVnJTyBLEq-iyrmwTLrX4K1isr6ygvPMcTFL0YFt_fbHykNKLWLG5IXmlTKrq2F7jvscdrYQirgQBrFcLCeW8rdVTftsX_jPtZGeIdpxAUeIbu46NxkBx9FLDB8JMCgOuF15wXYbtBm3FcwaKJBVwHXZMySjFZPsfODZmDEBQA"/>
+</div>
+<p class="font-bold text-sm">Taylor Reed</p>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">Associate</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">09:00 - 17:00</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
+<span class="size-1.5 rounded-full bg-amber-500"></span>
+                                            Break
+                                        </span>
+</td>
+<td class="px-6 py-4 text-sm font-medium">8</td>
+<td class="px-6 py-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors" title="View">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Edit">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded-full bg-slate-200 flex-shrink-0">
+<img alt="Staff Member" class="w-full h-full" data-alt="Profile photo of Casey Moon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCIznDuiHZao5t6rsVKWP780pPsXob5bXxZS-u7phi8XPP1Mskim0kG5EkinXNuU79kx3TMpZ5Cy-LFmvDfqKnoZNlFTcdztBwkCYVJn1Lhh3bde-IzOHPjw1Rv5EwFqZTMYehbCa00JiTSc4BuFvOAVUbAG7L4HYHyVsCLW4QQF-dhaW4ic5SGu9gE5XljVF91ik01ktwhrYNogZc9Fh_cLs9SPB9xplut1U-fweq4PKtZvKzpYvA7aeNnrcSBbTtuLi9wD4W0hI"/>
+</div>
+<p class="font-bold text-sm">Casey Moon</p>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">Coordinator</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">08:00 - 16:00</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+<span class="size-1.5 rounded-full bg-emerald-500"></span>
+                                            On Duty
+                                        </span>
+</td>
+<td class="px-6 py-4 text-sm font-medium">15</td>
+<td class="px-6 py-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors" title="View">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Edit">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded-full bg-slate-200 flex-shrink-0">
+<img alt="Staff Member" class="w-full h-full" data-alt="Profile photo of Morgan Lee" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBR8FTEkOgwrMbz0_pyIGxubagvQEGjr-Xqc0iFYvRHvCGQLDFbMchYmDHq3dp1xHXAWXyo-JaAXf5wFHHK8uaBckykuj4cgHTrGrSOci-EqEf4Jq7RFXbhWTggcSIKfzbKiViV-CCJlSy_KLQXYpsEm3DXTWd1PPHd7Xr9ZPmKtMf_towalXj-oo9Cfj3Hub2dFy9cudTqS4PkC6QiZn3-rlciHZekHqOdsL0D1LZMQ180-FtuUpVvtEnDzvWacVXRlkHKCk7IVZI"/>
+</div>
+<p class="font-bold text-sm">Morgan Lee</p>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">Associate</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">14:00 - 22:00</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+<span class="size-1.5 rounded-full bg-slate-400"></span>
+                                            Off Shift
+                                        </span>
+</td>
+<td class="px-6 py-4 text-sm font-medium">0</td>
+<td class="px-6 py-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors" title="View">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Edit">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors border-none">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded-full bg-slate-200 flex-shrink-0">
+<img alt="Staff Member" class="w-full h-full" data-alt="Profile photo of Riley Quinn" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNHkSkGVeRXI-sKu5pacoVW1DwwI2R9u_ywgbOfn_i63CBuq1IwZLdmoQXPajjX4Sl4vgHOcyky8mP-8UoUEx_0IsTkHhIh_Mu8BKZ2aTVU720KWacVd-LxF2uBPfM2wj6w_pmnbkuwZEpxqjCO-oTXGLynXSs2qlVvN1VBEApz8ZvP5xyu3hMC7zVQDj608CtHqwu5nGy10YaR0yVtT-XkgKJ8g1DcXzGpwRy22qkBBAWeXLsAhProrWvRbRKxkUtMmnD0ZAoo-g"/>
+</div>
+<p class="font-bold text-sm">Riley Quinn</p>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">Support</td>
+<td class="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">09:00 - 17:00</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+<span class="size-1.5 rounded-full bg-emerald-500"></span>
+                                            On Duty
+                                        </span>
+</td>
+<td class="px-6 py-4 text-sm font-medium">10</td>
+<td class="px-6 py-4 text-right">
+<div class="flex items-center justify-end gap-2">
+<button class="p-2 text-primary hover:bg-primary/5 rounded-lg transition-colors" title="View">
+<span class="material-symbols-outlined text-[20px]">visibility</span>
+</button>
+<button class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" title="Edit">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 bg-slate-50 dark:bg-slate-800/30 flex items-center justify-between border-t border-primary/5">
+<p class="text-xs text-slate-500">Showing 5 of 24 staff members</p>
+<div class="flex items-center gap-2">
+<button class="px-3 py-1 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg disabled:opacity-50">Previous</button>
+<button class="px-3 py-1 text-xs font-bold bg-primary text-white rounded-lg">Next</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

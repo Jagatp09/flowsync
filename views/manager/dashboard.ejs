@@ -1,0 +1,266 @@
+<%- include('../partials/managerSidebar', { activePage: 'dashboard' }) %>
+
+<main class="flex-1 ml-64">
+  <!-- Top Bar -->
+  <header class="h-16 border-b border-primary/10 bg-white dark:bg-slate-900 px-8 flex items-center justify-between sticky top-0 z-10">
+    <div class="flex items-center gap-4 flex-1">
+      <div class="relative w-full max-w-md">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+        <input class="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border-none focus:ring-2 focus:ring-primary text-sm" placeholder="Search staff or tasks..." type="text"/>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button class="size-10 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500">
+        <span class="material-symbols-outlined">notifications</span>
+      </button>
+      <button class="size-10 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500">
+        <span class="material-symbols-outlined">settings</span>
+      </button>
+      <div class="h-6 w-px bg-primary/10 mx-1"></div>
+      <div class="flex items-center gap-2 pl-2">
+        <div class="text-right">
+          <p class="text-xs font-bold leading-tight">FlowSync Pro</p>
+          <p class="text-[10px] text-primary">Active Subscription</p>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="p-8 space-y-8">
+    <!-- Dashboard Header & Filters -->
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 class="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Dashboard</h2>
+        <p class="text-slate-500 mt-1">Welcome back, <%= user ? user.fullName : 'Manager' %>. Here's what's happening today.</p>
+      </div>
+      <div class="flex flex-wrap gap-3">
+        <form action="/manager/dashboard" method="GET" class="flex items-center gap-2">
+          <div class="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-sm">
+            <span class="material-symbols-outlined text-slate-400 text-lg">calendar_today</span>
+            <input type="date" name="date" value="<%= selectedDate || new Date().toISOString().split('T')[0] %>" class="bg-transparent border-none focus:ring-0 text-sm" onchange="this.form.submit()">
+          </div>
+        </form>
+        <a href="/manager/checklists" class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors shadow-sm">
+          <span class="material-symbols-outlined text-lg">add</span>
+          <span>Create Checklist</span>
+        </a>
+      </div>
+    </div>
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="flex justify-between items-start mb-4">
+          <div class="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg text-emerald-600">
+            <span class="material-symbols-outlined">task_alt</span>
+          </div>
+        </div>
+        <p class="text-slate-500 text-sm font-medium">Completion Rate</p>
+        <h3 class="text-3xl font-bold mt-1"><%= stats.completionRate %>%</h3>
+      </div>
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="flex justify-between items-start mb-4">
+          <div class="p-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg text-amber-600">
+            <span class="material-symbols-outlined">pending_actions</span>
+          </div>
+        </div>
+        <p class="text-slate-500 text-sm font-medium">Pending Tasks</p>
+        <h3 class="text-3xl font-bold mt-1"><%= stats.pendingTasks %></h3>
+      </div>
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="flex justify-between items-start mb-4">
+          <div class="p-2 bg-blue-50 dark:bg-blue-900/30 rounded-lg text-blue-600">
+            <span class="material-symbols-outlined">group</span>
+          </div>
+        </div>
+        <p class="text-slate-500 text-sm font-medium">On-duty Staff</p>
+        <h3 class="text-3xl font-bold mt-1"><%= stats.activeStaff %> / <%= stats.totalStaff %></h3>
+      </div>
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="flex justify-between items-start mb-4">
+          <div class="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg text-purple-600">
+            <span class="material-symbols-outlined">timer</span>
+          </div>
+        </div>
+        <p class="text-slate-500 text-sm font-medium">Avg Task Time</p>
+        <h3 class="text-3xl font-bold mt-1"><%= stats.avgTaskTime %>m</h3>
+      </div>
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="flex justify-between items-start mb-4">
+          <div class="p-2 bg-primary/10 rounded-lg text-primary">
+            <span class="material-symbols-outlined">assignment</span>
+          </div>
+        </div>
+        <p class="text-slate-500 text-sm font-medium">Total Tasks</p>
+        <h3 class="text-3xl font-bold mt-1"><%= stats.totalTasks %></h3>
+      </div>
+    </div>
+    <!-- TEMP: Low Stock Alerts disabled for debugging
+    <% if (lowStockItems && lowStockItems.length > 0) { %>
+      <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
+              <span class="material-symbols-outlined text-amber-600 dark:text-amber-400">warning</span>
+            </div>
+            <h3 class="text-lg font-bold text-amber-900 dark:text-amber-200">Low Stock Alerts</h3>
+          </div>
+          <a href="/manager/inventory" class="text-sm font-semibold text-amber-700 dark:text-amber-400 hover:underline">View Inventory</a>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          <% lowStockItems.forEach(function(item) { %>
+            <div class="bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+              <p class="font-bold text-slate-900 dark:text-white truncate"><%= item.name %></p>
+              <p class="text-sm text-slate-500"><%= item.category || 'Uncategorized' %></p>
+              <div class="mt-3 flex items-baseline gap-1">
+                <span class="text-2xl font-bold <%= item.quantityOnHand === 0 ? 'text-red-600' : 'text-amber-600' %>"><%= item.quantityOnHand %></span>
+                <span class="text-sm text-slate-500"><%= item.unit || '' %></span>
+              </div>
+              <p class="text-xs text-slate-400 mt-1">Reorder at: <%= item.reorderLevel %></p>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
+    -->
+    <!-- Main Section: Table & Sidebar Feed -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <!-- Checklist Progress Table -->
+      <div class="lg:col-span-2 flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-bold">Checklist Progress</h3>
+          <a href="/manager/checklists" class="text-primary text-sm font-semibold hover:underline">View All</a>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                <th class="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Shift</th>
+                <th class="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Tasks Completed</th>
+                <th class="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Completion %</th>
+                <th class="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+              <% if (checklistProgress && checklistProgress.length > 0) { %>
+                <% checklistProgress.forEach(function(cl) { %>
+                  <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td class="px-6 py-4 font-medium"><%= cl.title %></td>
+                    <td class="px-6 py-4"><%= cl.completedItems %> / <%= cl.totalItems %></td>
+                    <td class="px-6 py-4">
+                      <div class="flex items-center gap-3">
+                        <div class="w-24 bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
+                          <div class="bg-primary h-full" style="width: <%= cl.percent %>%"></div>
+                        </div>
+                        <span class="text-sm"><%= cl.percent %>%</span>
+                      </div>
+                    </td>
+                    <td class="px-6 py-4">
+                      <% if (cl.status === 'Completed') { %>
+                        <span class="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded">Completed</span>
+                      <% } else if (cl.status === 'On Track') { %>
+                        <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded">On Track</span>
+                      <% } else if (cl.status === 'In Progress') { %>
+                        <span class="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded">In Progress</span>
+                      <% } else { %>
+                        <span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold rounded">Scheduled</span>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }); %>
+              <% } else { %>
+                <tr>
+                  <td colspan="4" class="px-6 py-8 text-center text-slate-500">
+                    No checklists found. <a href="/manager/checklists" class="text-primary hover:underline">Create one</a>
+                  </td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Recent Activity Feed -->
+      <div class="flex flex-col gap-4">
+        <h3 class="text-lg font-bold">Recent Activity</h3>
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm flex flex-col gap-6">
+          <% if (recentCompletions && recentCompletions.length > 0) { %>
+            <% recentCompletions.slice(0, 5).forEach(function(completion) { %>
+              <div class="flex gap-4">
+                <div class="flex-shrink-0 size-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span class="material-symbols-outlined text-primary text-xl">person</span>
+                </div>
+                <div>
+                  <p class="text-sm"><span class="font-bold"><%= completion.User ? completion.User.fullName : 'Unknown' %></span> completed <span class="font-medium text-primary"><%= completion.ChecklistItem ? completion.ChecklistItem.text : 'a task' %></span></p>
+                  <p class="text-xs text-slate-500 mt-1">
+                    <% if (completion.completedAt) { %>
+                      <%= new Date(completion.completedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %>
+                    <% } else { %>
+                      Recently
+                    <% } %>
+                  </p>
+                </div>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <p class="text-sm text-slate-500 text-center py-4">No recent activity</p>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    <!-- Missing Tasks Section -->
+    <% if (missingTasks && missingTasks.length > 0) { %>
+      <section class="flex flex-col gap-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-bold text-slate-900">Missing Tasks</h3>
+          <span class="text-sm text-slate-500">Tasks not yet completed</span>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800 overflow-hidden shadow-sm">
+          <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+            <p class="text-sm text-amber-700 dark:text-amber-400 font-medium"><%= missingTasks.length %> task(s) remaining</p>
+          </div>
+          <div class="divide-y divide-amber-100 dark:divide-amber-800">
+            <% missingTasks.forEach(function(task) { %>
+              <div class="p-4 flex items-center justify-between hover:bg-amber-50/50 dark:hover:bg-amber-900/10">
+                <div class="flex items-center gap-3">
+                  <div class="size-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-slate-400 text-sm">circle</span>
+                  </div>
+                  <div>
+                    <p class="text-sm font-medium text-slate-900 dark:text-slate-100"><%= task.text %></p>
+                    <p class="text-xs text-slate-500"><%= task.checklistTitle %> - <%= task.shiftType %></p>
+                  </div>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        </div>
+      </section>
+    <% } %>
+    <!-- Staff Scheduling Section -->
+    <section class="flex flex-col gap-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-slate-900">Staff Scheduling</h3>
+        <a href="/manager/staff" class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors shadow-sm">
+          <span class="material-symbols-outlined text-lg">edit_calendar</span>
+          <span>Manage Schedule</span>
+        </a>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <% if (allStaff && allStaff.length > 0) { %>
+          <% allStaff.slice(0, 4).forEach(function(s) { %>
+            <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center gap-4">
+              <div class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <span class="material-symbols-outlined">person</span>
+              </div>
+              <div>
+                <p class="text-sm font-bold"><%= s.fullName %></p>
+                <p class="text-xs text-slate-500">Staff Member</p>
+              </div>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <p class="text-slate-500 col-span-4">No staff found.</p>
+        <% } %>
+      </div>
+    </section>
+  </div>
+</main>
+</div>

@@ -1,0 +1,81 @@
+<%- include('../partials/managerSidebar', { activePage: 'activity' }) %>
+
+<main class="flex-1 ml-64">
+  <!-- Top Bar -->
+  <header class="h-16 border-b border-primary/10 bg-white dark:bg-slate-900 px-8 flex items-center justify-between sticky top-0 z-10">
+    <div class="flex items-center gap-4 flex-1">
+      <div class="relative w-full max-w-md">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
+        <input class="w-full pl-10 pr-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 border-none focus:ring-2 focus:ring-primary text-sm" placeholder="Search activities..." type="text"/>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button class="size-10 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-slate-500">
+        <span class="material-symbols-outlined">notifications</span>
+      </button>
+    </div>
+  </header>
+  <div class="p-8 space-y-8">
+    <!-- Header Section -->
+    <div>
+      <h2 class="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Activity Log</h2>
+      <p class="text-slate-500 mt-1">Track recent actions and updates across the system.</p>
+    </div>
+
+    <!-- Activity List -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-primary/5 shadow-sm overflow-hidden">
+      <div class="p-6 border-b border-primary/5">
+        <h3 class="font-bold text-lg">Recent Activities</h3>
+      </div>
+      <div class="divide-y divide-primary/5">
+        <% if (activities && activities.length > 0) { %>
+          <% activities.forEach(function(activity) { %>
+            <div class="p-4 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+              <div class="flex items-start gap-4">
+                <div class="<% if (activity.type === 'task' || activity.action === 'checklist_item_completed') { %>bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400<% } else if (activity.type === 'checklist') { %>bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400<% } else { %>bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400<% } %> p-2 rounded-full">
+                  <% if (activity.action === 'checklist_item_completed' || activity.type === 'task') { %>
+                    <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                  <% } else if (activity.type === 'checklist') { %>
+                    <span class="material-symbols-outlined text-[20px]">assignment_turned_in</span>
+                  <% } else { %>
+                    <span class="material-symbols-outlined text-[20px]">history</span>
+                  <% } %>
+                </div>
+                <div class="flex-1">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <p class="font-bold text-sm text-slate-900 dark:text-white"><%= activity.userName %></p>
+                      <p class="text-sm text-slate-600 dark:text-slate-400"><%= activity.action %></p>
+                    </div>
+                    <p class="text-xs text-slate-500">
+                      <% if (activity.createdAt) { %>
+                        <%= new Date(activity.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) %>
+                      <% } else { %>
+                        Recently
+                      <% } %>
+                    </p>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-1">
+                    <% if (activity.details && typeof activity.details === 'object') { %>
+                      <% if (activity.details.itemText) { %><%= activity.details.itemText %><% } %>
+                      <% if (activity.details.shiftType) { %> - <%= activity.details.shiftType %><% } %>
+                    <% } else if (activity.details) { %>
+                      <%= activity.details %>
+                    <% } %>
+                  </p>
+                </div>
+              </div>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <div class="p-8 text-center">
+            <span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-4">history</span>
+            <p class="text-slate-500">No activities recorded yet.</p>
+            <p class="text-sm text-slate-400 mt-1">Activities will appear here as staff complete tasks and submit reports.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</main>
+</div>

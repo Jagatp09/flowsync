@@ -1,0 +1,401 @@
+<%- include('../partials/managerSidebar', { activePage: 'reports' }) %>
+
+<main class="flex-1 ml-64">
+  <!-- Top Header -->
+  <header class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-8 flex items-center justify-between">
+    <h2 class="text-xl font-bold">Reports</h2>
+    <div class="flex items-center gap-4">
+      <div class="relative">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+        <input class="pl-10 pr-4 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm w-64 focus:ring-2 focus:ring-primary" placeholder="Search reports..." type="text"/>
+      </div>
+      <button class="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+        <span class="material-symbols-outlined">notifications</span>
+      </button>
+      <button class="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+        <span class="material-symbols-outlined">settings</span>
+      </button>
+    </div>
+  </header>
+  <div class="p-8 overflow-y-auto">
+    <div class="flex justify-between items-end mb-6">
+      <div>
+        <h3 class="text-2xl font-black tracking-tight mb-1">Performance Analytics</h3>
+        <p class="text-slate-500 text-sm">Analyze operational data, staff metrics, and checklist compliance.</p>
+      </div>
+      <button class="flex items-center gap-2 px-4 py-2 bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-bold hover:bg-slate-300 dark:hover:bg-slate-700 transition-all">
+        <span class="material-symbols-outlined text-sm">download</span>
+        Export CSV
+      </button>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="border-b border-slate-200 dark:border-slate-800 flex gap-4 mb-8">
+      <form action="/manager/reports" method="GET" class="flex gap-8 flex-1">
+        <input type="hidden" name="start" value="<%= startDate %>">
+        <input type="hidden" name="end" value="<%= endDate %>">
+        <button type="submit" name="tab" value="daily" class="pb-4 font-bold text-sm tracking-wide border-b-3 <%= activeTab === 'daily' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300' %>">Daily Operations</button>
+        <button type="submit" name="tab" value="staff" class="pb-4 font-bold text-sm tracking-wide border-b-3 <%= activeTab === 'staff' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300' %>">Staff Performance</button>
+        <button type="submit" name="tab" value="checklist" class="pb-4 font-bold text-sm tracking-wide border-b-3 <%= activeTab === 'checklist' ? 'border-primary text-primary' : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300' %>">Checklist Completion</button>
+      </form>
+      <div class="flex items-center gap-2 pb-4">
+        <% if (activeTab === 'daily') { %>
+          <a href="/manager/reports/download/daily?start=<%= startDate %>&end=<%= endDate %>" class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700">
+            <span class="material-symbols-outlined text-[16px]">download</span>
+            Download
+          </a>
+        <% } else if (activeTab === 'staff') { %>
+          <a href="/manager/reports/download/staff?start=<%= startDate %>&end=<%= endDate %>" class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700">
+            <span class="material-symbols-outlined text-[16px]">download</span>
+            Download
+          </a>
+        <% } else if (activeTab === 'checklist') { %>
+          <a href="/manager/reports/download/checklist?start=<%= startDate %>&end=<%= endDate %>" class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-700">
+            <span class="material-symbols-outlined text-[16px]">download</span>
+            Download
+          </a>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Filters Section -->
+    <form action="/manager/reports" method="GET" class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 mb-8 flex flex-wrap items-center gap-4">
+      <input type="hidden" name="tab" value="<%= activeTab %>">
+      <div class="flex flex-col gap-1">
+        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-1">Start Date</label>
+        <input class="border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm focus:ring-primary focus:border-primary" type="date" name="start" value="<%= startDate %>"/>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-1">End Date</label>
+        <input class="border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm focus:ring-primary focus:border-primary" type="date" name="end" value="<%= endDate %>"/>
+      </div>
+      <div class="mt-5">
+        <button type="submit" class="px-6 py-2 bg-primary text-white font-bold rounded-lg text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">
+          Generate Report
+        </button>
+      </div>
+    </form>
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+        <div class="flex justify-between items-start mb-4">
+          <span class="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg material-symbols-outlined">task_alt</span>
+        </div>
+        <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Avg Completion Rate</p>
+        <h4 class="text-3xl font-black text-slate-900 dark:text-white"><%= overallStats.avgCompletionRate %>%</h4>
+      </div>
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+        <div class="flex justify-between items-start mb-4">
+          <span class="p-2 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-lg material-symbols-outlined">warning</span>
+        </div>
+        <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Reported Issues</p>
+        <h4 class="text-3xl font-black text-slate-900 dark:text-white"><%= overallStats.totalIssues %></h4>
+      </div>
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+        <div class="flex justify-between items-start mb-4">
+          <span class="p-2 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-lg material-symbols-outlined">schedule</span>
+        </div>
+        <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Tasks Completed</p>
+        <h4 class="text-3xl font-black text-slate-900 dark:text-white"><%= overallStats.totalCompleted %></h4>
+      </div>
+      <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800">
+        <div class="flex justify-between items-start mb-4">
+          <span class="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg material-symbols-outlined">verified</span>
+        </div>
+        <p class="text-slate-500 text-xs font-bold uppercase tracking-widest mb-1">Checklists Finalized</p>
+        <h4 class="text-3xl font-black text-slate-900 dark:text-white"><%= overallStats.checklistsFinalized %> / <%= overallStats.totalChecklists %></h4>
+      </div>
+    </div>
+
+    <% if (activeTab === 'daily') { %>
+    <!-- Daily Operations Table -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div class="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+        <h5 class="font-bold text-slate-900 dark:text-white">Daily Operations Log</h5>
+        <div class="flex gap-2">
+          <button class="p-1.5 text-slate-400 hover:text-slate-600 rounded">
+            <span class="material-symbols-outlined text-xl">filter_list</span>
+          </button>
+          <button class="p-1.5 text-slate-400 hover:text-slate-600 rounded">
+            <span class="material-symbols-outlined text-xl">more_vert</span>
+          </button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 text-xs uppercase tracking-wider">
+            <tr>
+              <th class="px-6 py-4 font-bold">Date</th>
+              <th class="px-6 py-4 font-bold">Shift</th>
+              <th class="px-6 py-4 font-bold">Tasks (Comp/Total)</th>
+              <th class="px-6 py-4 font-bold">Completion %</th>
+              <th class="px-6 py-4 font-bold">Pending</th>
+              <th class="px-6 py-4 font-bold">Issues/Notes</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+            <% if (dailyReport && dailyReport.length > 0) { %>
+              <% dailyReport.forEach(function(day) { %>
+                <% if (day.morning.total > 0) { %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <td class="px-6 py-4 text-sm font-medium"><%= new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></td>
+                  <td class="px-6 py-4 text-sm">
+                    <span class="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded text-xs font-bold">Morning</span>
+                  </td>
+                  <td class="px-6 py-4 text-sm"><%= day.morning.completed %> / <%= day.morning.total %></td>
+                  <td class="px-6 py-4 text-sm">
+                    <div class="flex items-center gap-2">
+                      <div class="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div class="bg-emerald-500 h-full" style="width: <%= day.morning.percent %>%"></div>
+                      </div>
+                      <span class="font-bold text-xs"><%= day.morning.percent %>%</span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-sm font-bold <%= day.morning.total - day.morning.completed > 0 ? 'text-amber-500' : 'text-slate-400' %>"><%= day.morning.total - day.morning.completed %></td>
+                  <td class="px-6 py-4 text-sm text-slate-500">-</td>
+                </tr>
+                <% } %>
+                <% if (day.midday.total > 0) { %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <td class="px-6 py-4 text-sm font-medium"><%= new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></td>
+                  <td class="px-6 py-4 text-sm">
+                    <span class="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 rounded text-xs font-bold">Midday</span>
+                  </td>
+                  <td class="px-6 py-4 text-sm"><%= day.midday.completed %> / <%= day.midday.total %></td>
+                  <td class="px-6 py-4 text-sm">
+                    <div class="flex items-center gap-2">
+                      <div class="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div class="bg-emerald-500 h-full" style="width: <%= day.midday.percent %>%"></div>
+                      </div>
+                      <span class="font-bold text-xs"><%= day.midday.percent %>%</span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-sm font-bold <%= day.midday.total - day.midday.completed > 0 ? 'text-amber-500' : 'text-slate-400' %>"><%= day.midday.total - day.midday.completed %></td>
+                  <td class="px-6 py-4 text-sm text-slate-500">-</td>
+                </tr>
+                <% } %>
+                <% if (day.evening.total > 0) { %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <td class="px-6 py-4 text-sm font-medium"><%= new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></td>
+                  <td class="px-6 py-4 text-sm">
+                    <span class="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded text-xs font-bold">Evening</span>
+                  </td>
+                  <td class="px-6 py-4 text-sm"><%= day.evening.completed %> / <%= day.evening.total %></td>
+                  <td class="px-6 py-4 text-sm">
+                    <div class="flex items-center gap-2">
+                      <div class="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div class="bg-emerald-500 h-full" style="width: <%= day.evening.percent %>%"></div>
+                      </div>
+                      <span class="font-bold text-xs"><%= day.evening.percent %>%</span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-sm font-bold <%= day.evening.total - day.evening.completed > 0 ? 'text-amber-500' : 'text-slate-400' %>"><%= day.evening.total - day.evening.completed %></td>
+                  <td class="px-6 py-4 text-sm text-slate-500">-</td>
+                </tr>
+                <% } %>
+              <% }); %>
+            <% } else { %>
+              <tr>
+                <td colspan="6" class="px-6 py-8 text-center text-slate-500">
+                  No data available for the selected date range.
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+      <div class="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-sm text-slate-500">
+        <span>Showing <%= dailyReport ? dailyReport.length : 0 %> days</span>
+      </div>
+    </div>
+    <% } %>
+
+    <% if (activeTab === 'staff') { %>
+    <!-- Staff Performance Table -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div class="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+        <h5 class="font-bold text-slate-900 dark:text-white">Staff Performance</h5>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 text-xs uppercase tracking-wider">
+            <tr>
+              <th class="px-6 py-4 font-bold">Staff Member</th>
+              <th class="px-6 py-4 font-bold">Tasks Completed</th>
+              <th class="px-6 py-4 font-bold">Issues Reported</th>
+              <th class="px-6 py-4 font-bold">Performance</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+            <% if (staffReport && staffReport.length > 0) { %>
+              <% staffReport.forEach(function(staff) { %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <td class="px-6 py-4 text-sm font-medium"><%= staff.fullName %></td>
+                  <td class="px-6 py-4 text-sm"><%= staff.tasksCompleted %></td>
+                  <td class="px-6 py-4 text-sm <%= staff.issuesCount > 0 ? 'text-amber-500' : 'text-slate-500' %>"><%= staff.issuesCount %></td>
+                  <td class="px-6 py-4 text-sm">
+                    <% if (staff.tasksCompleted > 10) { %>
+                      <span class="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded">Excellent</span>
+                    <% } else if (staff.tasksCompleted > 5) { %>
+                      <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-xs font-bold rounded">Good</span>
+                    <% } else if (staff.tasksCompleted > 0) { %>
+                      <span class="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded">Fair</span>
+                    <% } else { %>
+                      <span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold rounded">No Activity</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } else { %>
+              <tr>
+                <td colspan="4" class="px-6 py-8 text-center text-slate-500">
+                  No staff data available.
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <% } %>
+
+    <% if (activeTab === 'checklist') { %>
+    <!-- Checklist Completion Table -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div class="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+        <h5 class="font-bold text-slate-900 dark:text-white">Checklist Completion</h5>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left">
+          <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 text-xs uppercase tracking-wider">
+            <tr>
+              <th class="px-6 py-4 font-bold">Checklist</th>
+              <th class="px-6 py-4 font-bold">Shift Type</th>
+              <th class="px-6 py-4 font-bold">Total Items</th>
+              <th class="px-6 py-4 font-bold">Completed</th>
+              <th class="px-6 py-4 font-bold">Completion %</th>
+              <th class="px-6 py-4 font-bold">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+            <% if (checklistReport && checklistReport.length > 0) { %>
+              <% checklistReport.forEach(function(cl) { %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <td class="px-6 py-4 text-sm font-medium"><%= cl.title %></td>
+                  <td class="px-6 py-4 text-sm">
+                    <% if (cl.shiftType === 'MORNING') { %>
+                      <span class="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded text-xs font-bold">Morning</span>
+                    <% } else if (cl.shiftType === 'MIDDAY') { %>
+                      <span class="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 rounded text-xs font-bold">Midday</span>
+                    <% } else if (cl.shiftType === 'EVENING') { %>
+                      <span class="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded text-xs font-bold">Evening</span>
+                    <% } else { %>
+                      <span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold">Other</span>
+                    <% } %>
+                  </td>
+                  <td class="px-6 py-4 text-sm"><%= cl.totalItems %></td>
+                  <td class="px-6 py-4 text-sm"><%= cl.completedItems %></td>
+                  <td class="px-6 py-4 text-sm">
+                    <div class="flex items-center gap-2">
+                      <div class="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div class="bg-emerald-500 h-full" style="width: <%= cl.percent %>%"></div>
+                      </div>
+                      <span class="font-bold text-xs"><%= cl.percent %>%</span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-sm">
+                    <% if (cl.status === 'Completed') { %>
+                      <span class="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold rounded">Completed</span>
+                    <% } else if (cl.status === 'In Progress') { %>
+                      <span class="px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded">In Progress</span>
+                    <% } else { %>
+                      <span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold rounded">Pending</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }); %>
+            <% } else { %>
+              <tr>
+                <td colspan="6" class="px-6 py-8 text-center text-slate-500">
+                  No checklist data available.
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Recent Shift Reports Section (always visible) -->
+    <div class="mt-8 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div class="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+        <h5 class="font-bold text-slate-900 dark:text-white">Recent Shift Reports</h5>
+        <span class="text-xs text-slate-500"><%= shiftReports ? shiftReports.length : 0 %> reports</span>
+      </div>
+      <% if (shiftReports && shiftReports.length > 0) { %>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 text-xs uppercase tracking-wider">
+              <tr>
+                <th class="px-6 py-4 font-bold">Date</th>
+                <th class="px-6 py-4 font-bold">Shift</th>
+                <th class="px-6 py-4 font-bold">Submitted By</th>
+                <th class="px-6 py-4 font-bold">Completion %</th>
+                <th class="px-6 py-4 font-bold">Notes</th>
+                <th class="px-6 py-4 font-bold">Submitted At</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+              <% shiftReports.forEach(function(report) { %>
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                  <td class="px-6 py-4 text-sm font-medium">
+                    <%= new Date(report.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+                  </td>
+                  <td class="px-6 py-4 text-sm">
+                    <% if (report.shiftType === 'MORNING') { %>
+                      <span class="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded text-xs font-bold">Morning</span>
+                    <% } else if (report.shiftType === 'MIDDAY') { %>
+                      <span class="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 rounded text-xs font-bold">Midday</span>
+                    <% } else if (report.shiftType === 'EVENING') { %>
+                      <span class="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded text-xs font-bold">Evening</span>
+                    <% } else { %>
+                      <span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold">Other</span>
+                    <% } %>
+                  </td>
+                  <td class="px-6 py-4 text-sm"><%= report.submittedBy %></td>
+                  <td class="px-6 py-4 text-sm">
+                    <div class="flex items-center gap-2">
+                      <div class="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div class="bg-emerald-500 h-full" style="width: <%= report.completionPercent %>%"></div>
+                      </div>
+                      <span class="font-bold text-xs"><%= report.completionPercent %>%</span>
+                    </div>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-slate-500 max-w-xs truncate" title="<%= report.notes %>">
+                    <% if (report.notes && report.notes.length > 0) { %>
+                      <%= report.notes.substring(0, 50) %><% if (report.notes.length > 50) { %>...<% } %>
+                    <% } else { %>
+                      -
+                    <% } %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-slate-500">
+                    <%= new Date(report.submittedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <div class="p-8 text-center text-slate-500">
+          <span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-4">description</span>
+          <p>No shift reports submitted yet.</p>
+          <p class="text-sm mt-1">Shift reports will appear here after staff submit their end-of-shift reports.</p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</main>
+</div>

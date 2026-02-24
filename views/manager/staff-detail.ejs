@@ -1,0 +1,121 @@
+<%- include('../partials/managerSidebar', { activePage: 'staff' }) %>
+
+<main class="flex-1 ml-64">
+  <!-- Top Bar -->
+  <header class="h-16 border-b border-primary/10 bg-white dark:bg-slate-900 px-8 flex items-center justify-between sticky top-0 z-10">
+    <div class="flex items-center gap-4">
+      <a href="/manager/staff" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+        <span class="material-symbols-outlined">arrow_back</span>
+      </a>
+      <h2 class="text-xl font-bold">Staff Details</h2>
+    </div>
+  </header>
+  <div class="p-8 space-y-8">
+    <!-- Staff Info Card -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-4">
+          <div class="size-16 rounded-full bg-primary/20 flex items-center justify-center">
+            <span class="material-symbols-outlined text-primary text-3xl">person</span>
+          </div>
+          <div>
+            <h3 class="text-2xl font-black text-slate-900 dark:text-white"><%= staffMember.fullName %></h3>
+            <p class="text-slate-500"><%= staffMember.email %></p>
+            <div class="flex items-center gap-2 mt-2">
+              <% if (staffMember.role === 'MANAGER') { %>
+                <span class="px-2 py-1 bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 rounded text-xs font-bold">Manager</span>
+              <% } else { %>
+                <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded text-xs font-bold">Staff</span>
+              <% } %>
+              <% if (staffMember.isActive) { %>
+                <span class="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded text-xs font-bold">Active</span>
+              <% } else { %>
+                <span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-xs font-bold">Inactive</span>
+              <% } %>
+            </div>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          <a href="/manager/staff/<%= staffMember.id %>/edit" class="px-4 py-2 bg-primary text-white rounded-lg font-bold hover:bg-primary/90 flex items-center gap-2">
+            <span class="material-symbols-outlined text-[18px]">edit</span>
+            Edit
+          </a>
+          <form action="/manager/staff/<%= staffMember.id %>?_method=DELETE" method="POST" onsubmit="return confirm('Are you sure you want to delete this staff member?');">
+            <button type="submit" class="px-4 py-2 bg-red-500 text-white rounded-lg font-bold hover:bg-red-600 flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">delete</span>
+              Delete
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Attendance History -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+      <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Recent Attendance</h4>
+      <% if (attendance && attendance.length > 0) { %>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 text-xs uppercase tracking-wider">
+              <tr>
+                <th class="px-4 py-3 font-bold">Date</th>
+                <th class="px-4 py-3 font-bold">Status</th>
+                <th class="px-4 py-3 font-bold">Clock In</th>
+                <th class="px-4 py-3 font-bold">Clock Out</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+              <% attendance.forEach(function(a) { %>
+                <tr>
+                  <td class="px-4 py-3 text-sm"><%= new Date(a.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></td>
+                  <td class="px-4 py-3">
+                    <% if (a.status === 'CLOCKED_IN') { %>
+                      <span class="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 rounded text-xs font-bold">Clocked In</span>
+                    <% } else if (a.status === 'CLOCKED_OUT') { %>
+                      <span class="px-2 py-1 bg-amber-100 dark:bg-amber-900/20 text-amber-600 rounded text-xs font-bold">Clocked Out</span>
+                    <% } else { %>
+                      <span class="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-xs font-bold">Not Started</span>
+                    <% } %>
+                  </td>
+                  <td class="px-4 py-3 text-sm text-slate-500"><%= a.clockInTime ? new Date(a.clockInTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '-' %></td>
+                  <td class="px-4 py-3 text-sm text-slate-500"><%= a.clockOutTime ? new Date(a.clockOutTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '-' %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } else { %>
+        <p class="text-slate-500 text-center py-4">No attendance records found.</p>
+      <% } %>
+    </div>
+
+    <!-- Task Assignments -->
+    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+      <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Recent Task Assignments</h4>
+      <% if (taskAssignments && taskAssignments.length > 0) { %>
+        <div class="space-y-3">
+          <% taskAssignments.forEach(function(task) { %>
+            <div class="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <div>
+                <p class="font-bold text-slate-900 dark:text-white"><%= task.customTaskText || 'Task' %></p>
+                <p class="text-xs text-slate-500">
+                  <% if (task.Shift) { %>
+                    <%= task.Shift.shiftType %> - <%= new Date(task.Shift.shiftDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
+                  <% } %>
+                </p>
+              </div>
+              <% if (task.status === 'DONE') { %>
+                <span class="px-2 py-1 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 rounded text-xs font-bold">Done</span>
+              <% } else { %>
+                <span class="px-2 py-1 bg-amber-100 dark:bg-amber-900/20 text-amber-600 rounded text-xs font-bold">Open</span>
+              <% } %>
+            </div>
+          <% }); %>
+        </div>
+      <% } else { %>
+        <p class="text-slate-500 text-center py-4">No task assignments found.</p>
+      <% } %>
+    </div>
+  </div>
+</main>
+</div>
