@@ -50,7 +50,7 @@ FlowSync is a Node.js + Express + PostgreSQL application for managing staff, shi
 
 5. **Start server**:
    ```bash
-   node server.js
+   node index.js
    ```
 
 6. **Access the app**:
@@ -102,5 +102,5 @@ flowsync/
 ├── utils/
 │   └── activityLogger.js # Activity logging utility
 ├── seed.js              # Demo data seeder
-└── server.js            # Express server
+└── index.js            # Express server
 ```
