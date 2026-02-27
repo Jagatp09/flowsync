@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm install)"
+      "Bash(npm install)",
+      "Bash(node -e \"require\\(''./routes/manager.js''\\)\")",
+      "Bash(curl -s -X POST http://localhost:3000/manager/staff -H \"Content-Type: application/x-www-form-urlencoded\" -d \"fullName=Test User&email=test@example.com&role=STAFF&password=123456\" -c cookies.txt -L)"
     ]
   }
 }

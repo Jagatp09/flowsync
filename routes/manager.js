@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcrypt');
 const { Checklist, ChecklistItem, ChecklistCompletion, User, ShiftReport, Shift, ShiftSummary, InventoryItem, InventoryLog, ShiftAssignment, ShiftNote, TaskAssignment } = require('../models');
 const { Op } = require('sequelize');
 
@@ -98,12 +97,63 @@ router.get('/dashboard', async (req, res) => {
       order: [['completedAt', 'DESC']], limit: 10
     });
 
+    // Get staff who are clocked in today with their pending tasks
+    const clockedInStaff = await StaffAttendance.findAll({
+      where: {
+        date: today,
+        status: 'CLOCKED_IN'
+      },
+      include: [{ model: User, as: 'User', attributes: ['id', 'fullName'] }]
+    });
+
+    // Get all completions for today (grouped by user)
+    const todayCompletions = await ChecklistCompletion.findAll({
+      where: { date: today }
+    });
+
+    const completionByUser = {};
+    todayCompletions.forEach(c => {
+      if (!completionByUser[c.userId]) {
+        completionByUser[c.userId] = {};
+      }
+      completionByUser[c.userId][c.checklistItemId] = c;
+    });
+
+    // Build missing tasks with staff info
     const missingTasks = [];
+    const staffMap = {};
+    clockedInStaff.forEach(s => {
+      staffMap[s.userId] = s.User ? s.User.fullName : 'Unknown';
+    });
+
     checklists.forEach(cl => {
       cl.items.forEach(item => {
-        const completion = itemCompletionMap[item.id];
-        if (!completion || completion.status !== 'COMPLETED') {
-          missingTasks.push({ itemText: item.text, checklistTitle: cl.title, status: completion ? completion.status : 'PENDING' });
+        // Check if any clocked-in staff has completed this task
+        let completedBy = null;
+        let completedStatus = 'PENDING';
+
+        for (const userId of Object.keys(staffMap)) {
+          const completion = completionByUser[userId]?.[item.id];
+          if (completion && completion.status === 'COMPLETED') {
+            completedBy = staffMap[userId];
+            completedStatus = 'COMPLETED';
+            break;
+          }
+        }
+
+        if (completedStatus !== 'COMPLETED') {
+          // Get which staff are clocked in but haven't completed this
+          const pendingStaff = Object.entries(staffMap)
+            .filter(([userId]) => !completionByUser[userId]?.[item.id] || completionByUser[userId][item.id].status !== 'COMPLETED')
+            .map(([userId, name]) => name);
+
+          missingTasks.push({
+            itemText: item.text,
+            checklistTitle: cl.title,
+            shiftType: cl.shiftType,
+            status: completedStatus,
+            pendingStaff: pendingStaff.length > 0 ? pendingStaff : null
+          });
         }
       });
     });
@@ -217,12 +267,63 @@ router.get('/dash2', async (req, res) => {
       order: [['completedAt', 'DESC']], limit: 10
     });
 
+    // Get staff who are clocked in today with their pending tasks
+    const clockedInStaff = await StaffAttendance.findAll({
+      where: {
+        date: today,
+        status: 'CLOCKED_IN'
+      },
+      include: [{ model: User, as: 'User', attributes: ['id', 'fullName'] }]
+    });
+
+    // Get all completions for today (grouped by user)
+    const todayCompletions = await ChecklistCompletion.findAll({
+      where: { date: today }
+    });
+
+    const completionByUser = {};
+    todayCompletions.forEach(c => {
+      if (!completionByUser[c.userId]) {
+        completionByUser[c.userId] = {};
+      }
+      completionByUser[c.userId][c.checklistItemId] = c;
+    });
+
+    // Build missing tasks with staff info
     const missingTasks = [];
+    const staffMap = {};
+    clockedInStaff.forEach(s => {
+      staffMap[s.userId] = s.User ? s.User.fullName : 'Unknown';
+    });
+
     checklists.forEach(cl => {
       cl.items.forEach(item => {
-        const completion = itemCompletionMap[item.id];
-        if (!completion || completion.status !== 'COMPLETED') {
-          missingTasks.push({ itemText: item.text, checklistTitle: cl.title, status: completion ? completion.status : 'PENDING' });
+        // Check if any clocked-in staff has completed this task
+        let completedBy = null;
+        let completedStatus = 'PENDING';
+
+        for (const userId of Object.keys(staffMap)) {
+          const completion = completionByUser[userId]?.[item.id];
+          if (completion && completion.status === 'COMPLETED') {
+            completedBy = staffMap[userId];
+            completedStatus = 'COMPLETED';
+            break;
+          }
+        }
+
+        if (completedStatus !== 'COMPLETED') {
+          // Get which staff are clocked in but haven't completed this
+          const pendingStaff = Object.entries(staffMap)
+            .filter(([userId]) => !completionByUser[userId]?.[item.id] || completionByUser[userId][item.id].status !== 'COMPLETED')
+            .map(([userId, name]) => name);
+
+          missingTasks.push({
+            itemText: item.text,
+            checklistTitle: cl.title,
+            shiftType: cl.shiftType,
+            status: completedStatus,
+            pendingStaff: pendingStaff.length > 0 ? pendingStaff : null
+          });
         }
       });
     });
@@ -478,6 +579,9 @@ router.post('/checklists', async (req, res) => {
 // GET /manager/staff
 router.get('/staff', async (req, res) => {
   try {
+    console.log('GET /staff - Session success:', req.session.success);
+    console.log('GET /staff - Session error:', req.session.error);
+
     const staff = await User.findAll({
       where: { role: 'STAFF' },
       order: [['fullName', 'ASC']]
@@ -497,6 +601,9 @@ router.get('/staff', async (req, res) => {
 
     const activeStaffCount = attendance.filter(a => a.status === 'CLOCKED_IN').length;
 
+    const successMsg = req.session.success;
+    const errorMsg = req.session.error;
+
     res.render('manager/staff', {
       title: 'Staff',
       activePage: 'staff',
@@ -506,16 +613,27 @@ router.get('/staff', async (req, res) => {
         clockInTime: attendanceMap[s.id] ? attendanceMap[s.id].clockInTime : null
       })),
       stats: { totalStaff: staff.length, activeStaff: activeStaffCount },
-      pagination: { page: 1, total: staff.length }
+      pagination: { page: 1, total: staff.length },
+      error: errorMsg,
+      success: successMsg
     });
+    console.log('Rendered with success:', successMsg, 'error:', errorMsg);
+    // Clear the session messages after displaying
+    if (req.session.error) delete req.session.error;
+    if (req.session.success) delete req.session.success;
   } catch (error) {
     res.render('manager/staff', {
       title: 'Staff',
       activePage: 'staff',
       staff: [],
       stats: { totalStaff: 0, activeStaff: 0 },
-      pagination: null
+      pagination: null,
+      error: req.session.error || null,
+      success: req.session.success || null
     });
+    // Clear the session messages
+    if (req.session.error) delete req.session.error;
+    if (req.session.success) delete req.session.success;
   }
 });
 
@@ -523,44 +641,61 @@ router.get('/staff', async (req, res) => {
 router.post('/staff', async (req, res) => {
   try {
     const { fullName, email, role, password } = req.body;
+    console.log('=== Adding staff ===');
+    console.log('FullName:', fullName);
+    console.log('Email:', email);
 
     // Validate required fields
     if (!fullName || !email || !password) {
+      console.log('Validation failed: missing required fields');
       req.session.error = 'Please fill in all required fields';
-      return res.redirect('/manager/staff');
+      return req.session.save(() => res.redirect('/manager/staff'));
     }
 
     // Check if email already exists
     const existingUser = await User.findOne({ where: { email } });
+    console.log('Existing user check:', existingUser ? existingUser.id : 'none');
     if (existingUser) {
       req.session.error = 'A user with this email already exists';
-      return res.redirect('/manager/staff');
+      return req.session.save(() => res.redirect('/manager/staff'));
     }
 
     // Validate password length
     if (password.length < 6) {
+      console.log('Validation failed: password too short');
       req.session.error = 'Password must be at least 6 characters';
-      return res.redirect('/manager/staff');
+      return req.session.save(() => res.redirect('/manager/staff'));
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create new staff member
-    await User.create({
+    // Create new staff member (password will be hashed by model's beforeCreate hook)
+    console.log('Creating user with:', { fullName, email, role, passwordHash: '***' });
+    const newUser = await User.create({
       fullName,
       email,
-      password: hashedPassword,
+      passwordHash: password,
       role: role || 'STAFF',
       isActive: true
     });
-
-    req.session.success = `${fullName} has been added as ${role || 'Staff'}!`;
-    res.redirect('/manager/staff');
+    console.log('=== User created successfully:', newUser.id, '===');
+    const successMessage = `${fullName} has been added as ${role || 'Staff'}!`;
+    req.session.success = successMessage;
+    console.log('Set session.success:', successMessage);
+    // Save session before redirect to ensure it's persisted
+    req.session.save((err) => {
+      if (err) {
+        console.error('Session save error:', err);
+      }
+      console.log('Session saved, redirecting...');
+      res.redirect('/manager/staff');
+    });
   } catch (error) {
-    console.error('Error adding staff:', error);
-    req.session.error = 'Error adding staff member. Please try again.';
-    res.redirect('/manager/staff');
+    console.error('=== Error adding staff:', error);
+    console.error('Stack:', error.stack);
+    req.session.error = 'Error adding staff member: ' + error.message;
+    req.session.save((err) => {
+      if (err) console.error('Session save error:', err);
+      res.redirect('/manager/staff');
+    });
   }
 });
 
@@ -637,7 +772,7 @@ router.put('/staff/:id', async (req, res) => {
     const staffMember = await User.findByPk(id);
     if (!staffMember) {
       req.session.error = 'Staff member not found';
-      return res.redirect('/manager/staff');
+      return req.session.save(() => res.redirect('/manager/staff'));
     }
 
     // Check if email is being changed and if it's already taken
@@ -645,7 +780,7 @@ router.put('/staff/:id', async (req, res) => {
       const existingUser = await User.findOne({ where: { email } });
       if (existingUser) {
         req.session.error = 'A user with this email already exists';
-        return res.redirect(`/manager/staff/${id}/edit`);
+        return req.session.save(() => res.redirect(`/manager/staff/${id}/edit`));
       }
     }
 
@@ -659,17 +794,17 @@ router.put('/staff/:id', async (req, res) => {
 
     // Only update password if provided
     if (password && password.length >= 6) {
-      updateData.password = await bcrypt.hash(password, 10);
+      updateData.passwordHash = password;
     }
 
     await staffMember.update(updateData);
 
     req.session.success = 'Staff member updated successfully!';
-    res.redirect('/manager/staff');
+    req.session.save(() => res.redirect('/manager/staff'));
   } catch (error) {
     console.error('Error updating staff:', error);
     req.session.error = 'Error updating staff member';
-    res.redirect('/manager/staff');
+    req.session.save(() => res.redirect('/manager/staff'));
   }
 });
 
@@ -681,16 +816,16 @@ router.delete('/staff/:id', async (req, res) => {
 
     if (!staffMember) {
       req.session.error = 'Staff member not found';
-      return res.redirect('/manager/staff');
+      return req.session.save(() => res.redirect('/manager/staff'));
     }
 
     await staffMember.destroy();
     req.session.success = 'Staff member deleted successfully!';
-    res.redirect('/manager/staff');
+    req.session.save(() => res.redirect('/manager/staff'));
   } catch (error) {
     console.error('Error deleting staff:', error);
     req.session.error = 'Error deleting staff member';
-    res.redirect('/manager/staff');
+    req.session.save(() => res.redirect('/manager/staff'));
   }
 });
 

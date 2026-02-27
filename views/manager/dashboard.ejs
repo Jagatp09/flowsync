@@ -213,19 +213,26 @@
           <span class="text-sm text-slate-500">Tasks not yet completed</span>
         </div>
         <div class="bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800 overflow-hidden shadow-sm">
-          <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+          <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between">
             <p class="text-sm text-amber-700 dark:text-amber-400 font-medium"><%= missingTasks.length %> task(s) remaining</p>
+            <% const pendingByStaff = missingTasks.filter(t => t.pendingStaff && t.pendingStaff.length > 0).length; %>
+            <% if (pendingByStaff > 0) { %>
+              <span class="text-xs bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 px-2 py-1 rounded-full"><%= pendingByStaff %> pending by staff</span>
+            <% } %>
           </div>
           <div class="divide-y divide-amber-100 dark:divide-amber-800">
             <% missingTasks.forEach(function(task) { %>
               <div class="p-4 flex items-center justify-between hover:bg-amber-50/50 dark:hover:bg-amber-900/10">
                 <div class="flex items-center gap-3">
-                  <div class="size-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                    <span class="material-symbols-outlined text-slate-400 text-sm">circle</span>
+                  <div class="size-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-amber-600 dark:text-amber-400 text-sm">radio_button_unchecked</span>
                   </div>
                   <div>
-                    <p class="text-sm font-medium text-slate-900 dark:text-slate-100"><%= task.text %></p>
+                    <p class="text-sm font-medium text-slate-900 dark:text-slate-100"><%= task.itemText %></p>
                     <p class="text-xs text-slate-500"><%= task.checklistTitle %> - <%= task.shiftType %></p>
+                    <% if (task.pendingStaff && task.pendingStaff.length > 0) { %>
+                      <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">Pending: <%= task.pendingStaff.join(', ') %></p>
+                    <% } %>
                   </div>
                 </div>
               </div>

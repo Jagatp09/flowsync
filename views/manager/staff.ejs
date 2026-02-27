@@ -26,6 +26,21 @@
     </div>
   </header>
   <div class="p-8 space-y-8">
+    <!-- Success/Error Messages -->
+    <% var msgSuccess = typeof success !== 'undefined' ? success : (typeof locals.success !== 'undefined' ? locals.success : null); %>
+    <% var msgError = typeof error !== 'undefined' ? error : (typeof locals.error !== 'undefined' ? locals.error : null); %>
+    <% if (msgSuccess) { %>
+      <div class="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 flex items-center gap-3">
+        <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">check_circle</span>
+        <p class="text-sm text-emerald-700 dark:text-emerald-300"><%= msgSuccess %></p>
+      </div>
+    <% } %>
+    <% if (msgError) { %>
+      <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-3">
+        <span class="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+        <p class="text-sm text-red-700 dark:text-red-300"><%= msgError %></p>
+      </div>
+    <% } %>
     <!-- Header Section -->
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>

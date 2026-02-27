@@ -41,7 +41,7 @@ app.use(
     secret: process.env.SESSION_SECRET || 'flowsync-secret',
     store: sessionStore,
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true,
     cookie: {
       maxAge: 1000 * 60 * 60 * 24 // 24 hours
     }
@@ -55,12 +55,6 @@ sessionStore.sync();
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   res.locals.activePage = '';
-  // Flash messages
-  res.locals.success = req.session.success || null;
-  res.locals.error = req.session.error || null;
-  // Clear flash messages after reading
-  delete req.session.success;
-  delete req.session.error;
   next();
 });
 
