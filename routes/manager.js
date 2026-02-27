@@ -183,10 +183,23 @@ router.get('/dashboard', async (req, res) => {
       });
     }
 
+    // Get low stock items (quantity <= reorder level)
+    const { InventoryItem } = require('../models');
+    const lowStockItems = await InventoryItem.findAll({
+      where: {
+        [Op.or]: [
+          { quantityOnHand: { [Op.lte]: sequelize.col('reorderLevel') } },
+          { quantityOnHand: { [Op.lt]: 10 } }
+        ]
+      },
+      order: [['quantityOnHand', 'ASC']],
+      limit: 10
+    });
+
     res.render('manager/dashboard', {
       title: 'Dashboard', activePage: 'dashboard', selectedDate: dateStr,
       stats: { completionRate, pendingTasks, activeStaff: activeStaffCount, totalStaff: staffCount, totalTasks, completedTasks, avgTaskTime },
-      checklistProgress, recentCompletions, allStaff, missingTasks: missingTasks.slice(0, 10), lowStockItems: [],
+      checklistProgress, recentCompletions, allStaff, missingTasks: missingTasks.slice(0, 10), lowStockItems: lowStockItems.map(i => i.toJSON()),
       activeShift: activeShift ? activeShift.toJSON() : null,
       recentShiftNotes: recentShiftNotes.map(n => n.toJSON())
     });
@@ -198,6 +211,128 @@ router.get('/dashboard', async (req, res) => {
       checklistProgress: [], recentCompletions: [], allStaff: [], missingTasks: [], lowStockItems: [],
       activeShift: null, recentShiftNotes: []
     });
+  }
+});
+
+// GET /manager/checklists/:id - View checklist detail
+router.get('/checklists/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const checklist = await Checklist.findByPk(id, {
+      include: [{ model: ChecklistItem, as: 'items', order: [['sortOrder', 'ASC']] }]
+    });
+
+    if (!checklist) {
+      req.session.error = 'Checklist not found';
+      return res.redirect('/manager/checklists');
+    }
+
+    const successMsg = req.session.success;
+    const errorMsg = req.session.error;
+
+    res.render('manager/checklist-detail', {
+      title: checklist.title,
+      activePage: 'checklists',
+      checklist: checklist.toJSON(),
+      success: successMsg,
+      error: errorMsg
+    });
+
+    // Clear session messages
+    if (successMsg) delete req.session.success;
+    if (errorMsg) delete req.session.error;
+  } catch (error) {
+    console.error('Error loading checklist detail:', error);
+    req.session.error = 'Error loading checklist';
+    res.redirect('/manager/checklists');
+  }
+});
+
+// POST /manager/checklists/:id/items - Add item to checklist
+router.post('/checklists/:id/items', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text, category, sortOrder } = req.body;
+
+    const checklist = await Checklist.findByPk(id);
+    if (!checklist) {
+      req.session.error = 'Checklist not found';
+      return req.session.save(() => res.redirect('/manager/checklists'));
+    }
+
+    if (!text || text.trim() === '') {
+      req.session.error = 'Task text is required';
+      return req.session.save(() => res.redirect(`/manager/checklists/${id}`));
+    }
+
+    await ChecklistItem.create({
+      text: text.trim(),
+      category: category || 'General',
+      sortOrder: parseInt(sortOrder) || 0,
+      checklistId: id
+    });
+
+    req.session.success = 'Task added successfully!';
+    req.session.save(() => res.redirect(`/manager/checklists/${id}`));
+  } catch (error) {
+    console.error('Error adding checklist item:', error);
+    req.session.error = 'Error adding task';
+    req.session.save(() => res.redirect('/manager/checklists'));
+  }
+});
+
+// PUT /manager/items/:id - Update checklist item
+router.put('/items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text, category, sortOrder } = req.body;
+
+    const item = await ChecklistItem.findByPk(id);
+    if (!item) {
+      req.session.error = 'Task not found';
+      return req.session.save(() => res.redirect('/manager/checklists'));
+    }
+
+    if (!text || text.trim() === '') {
+      req.session.error = 'Task text is required';
+      return req.session.save(() => res.redirect(`/manager/checklists/${item.checklistId}`));
+    }
+
+    await item.update({
+      text: text.trim(),
+      category: category || item.category,
+      sortOrder: parseInt(sortOrder) || item.sortOrder
+    });
+
+    req.session.success = 'Task updated successfully!';
+    req.session.save(() => res.redirect(`/manager/checklists/${item.checklistId}`));
+  } catch (error) {
+    console.error('Error updating checklist item:', error);
+    req.session.error = 'Error updating task';
+    req.session.save(() => res.redirect('/manager/checklists'));
+  }
+});
+
+// DELETE /manager/items/:id - Delete checklist item
+router.delete('/items/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const item = await ChecklistItem.findByPk(id);
+    if (!item) {
+      req.session.error = 'Task not found';
+      return req.session.save(() => res.redirect('/manager/checklists'));
+    }
+
+    const checklistId = item.checklistId;
+    await item.destroy();
+
+    req.session.success = 'Task deleted successfully!';
+    req.session.save(() => res.redirect(`/manager/checklists/${checklistId}`));
+  } catch (error) {
+    console.error('Error deleting checklist item:', error);
+    req.session.error = 'Error deleting task';
+    req.session.save(() => res.redirect('/manager/checklists'));
   }
 });
 
@@ -449,6 +584,12 @@ router.get('/reports', async (req, res) => {
       return { title: cl.title, shiftType: cl.shiftType, totalItems, completedItems, percent, status };
     });
 
+    // Get inventory report
+    const { InventoryItem } = require('../models');
+    const inventoryReport = await InventoryItem.findAll({
+      order: [['quantityOnHand', 'ASC'], ['name', 'ASC']]
+    });
+
     res.render('manager/reports', {
       title: 'Reports',
       activePage: 'reports',
@@ -459,6 +600,7 @@ router.get('/reports', async (req, res) => {
       dailyReport,
       staffReport,
       checklistReport,
+      inventoryReport: inventoryReport.map(i => i.toJSON()),
       shiftReports: shiftReports.map(r => ({
         ...r.toJSON(),
         submittedBy: r.User ? r.User.fullName : 'Unknown',
@@ -477,6 +619,7 @@ router.get('/reports', async (req, res) => {
       dailyReport: [],
       staffReport: [],
       checklistReport: [],
+      inventoryReport: [],
       shiftReports: []
     });
   }
@@ -1497,6 +1640,21 @@ router.get('/reports/download/:type', async (req, res) => {
         csvContent += `"${cl.title}",${shiftType},${checklistTotalItems},${completedItems},${percent}%,${status}\n`;
       });
       filename = `checklist-completion-${startDate}-to-${endDate}.csv`;
+    } else if (type === 'inventory') {
+      // Inventory Report
+      const { InventoryItem } = require('../models');
+      const inventory = await InventoryItem.findAll({
+        order: [['name', 'ASC']]
+      });
+
+      csvContent = 'Item Name,Category,Quantity,Unit,Reorder Level,Status\n';
+      inventory.forEach(item => {
+        let status = 'In Stock';
+        if (item.quantityOnHand === 0) status = 'Out of Stock';
+        else if (item.quantityOnHand <= item.reorderLevel) status = 'Low Stock';
+        csvContent += `"${item.name}","${item.category || 'Uncategorized'}",${item.quantityOnHand},"${item.unit || '-'} ${item.reorderLevel}",${status}\n`;
+      });
+      filename = `inventory-report-${new Date().toISOString().split('T')[0]}.csv`;
     }
 
     res.setHeader('Content-Type', 'text/csv');
