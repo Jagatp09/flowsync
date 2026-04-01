@@ -55,7 +55,14 @@
           <div class="flex justify-between items-start">
             <div>
               <p class="text-primary-foreground/80 text-sm font-medium opacity-80">Today's Shift</p>
-              <h3 class="text-2xl font-bold mt-1">08:00 - 16:00</h3>
+              <h3 class="text-2xl font-bold mt-1"><%= shiftWindow %></h3>
+              <p class="text-white/80 mt-2 text-sm">
+                <% if (myShift) { %>
+                  <%= myShift.title || myShift.shiftType %>
+                <% } else { %>
+                  No active shift assignment for today
+                <% } %>
+              </p>
             </div>
             <% if (attendance && attendance.status === 'CLOCKED_OUT') { %>
               <div class="bg-slate-500/50 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
@@ -79,12 +86,14 @@
             </div>
             <% if (attendance && attendance.status === 'CLOCKED_OUT') { %>
               <form action="/staff/clock-in" method="POST">
+                <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"/>
                 <button type="submit" class="bg-white text-primary px-6 py-2 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors">
                   Clock In
                 </button>
               </form>
             <% } else { %>
               <form action="/staff/clock-out" method="POST">
+                <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"/>
                 <button type="submit" class="bg-white text-primary px-6 py-2 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors">
                   Clock Out
                 </button>
@@ -102,13 +111,14 @@
                 <% if (nextShiftDate) { %>
                   <%= new Date(nextShiftDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' }) %>
                 <% } else { %>
-                  Tomorrow
+                  Not scheduled yet
                 <% } %>
               </h3>
+              <% if (nextShift) { %>
+                <p class="text-sm text-slate-500 mt-2"><%= nextShift.title || nextShift.shiftType %></p>
+              <% } %>
             </div>
-            <div class="bg-slate-200 dark:bg-slate-700 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
-              <span class="text-[10px]">(Demo)</span>
-            </div>
+            <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Upcoming</span>
           </div>
         </div>
         <% } %>
@@ -147,8 +157,11 @@
           <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm p-6">
             <div class="text-center py-8">
               <span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-4">assignment</span>
-              <p class="text-slate-500 mb-4">You have <%= stats.total %> tasks assigned for today.</p>
+              <p class="text-slate-500 mb-4">You have <%= stats.total %> checklist task(s) assigned for today.</p>
               <p class="text-slate-500"><%= stats.completed %> completed, <%= stats.remaining %> remaining.</p>
+              <% if (assignedShiftTypes && assignedShiftTypes.length > 0) { %>
+                <p class="text-xs text-slate-400 mt-3">Shift access: <%= assignedShiftTypes.join(', ') %></p>
+              <% } %>
               <a href="/checklists/daily" class="inline-block mt-4 bg-primary text-white px-6 py-2 rounded-lg text-sm font-semibold">
                 View My Tasks
               </a>
@@ -186,6 +199,7 @@
                         <span class="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded text-xs font-bold">Done</span>
                       <% } else { %>
                         <form action="/staff/tasks/<%= task.id %>?_method=PUT" method="POST" class="inline">
+                          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"/>
                           <input type="hidden" name="status" value="DONE"/>
                           <button type="submit" class="px-3 py-1 bg-primary text-white rounded text-xs font-bold hover:bg-primary/90">Mark Complete</button>
                         </form>
@@ -234,7 +248,7 @@
                 <p class="text-sm text-slate-500 text-center py-4">No recent activity</p>
               <% } %>
             </div>
-            <a href="/checklists/daily" class="w-full mt-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors inline-block text-center">
+            <a href="/staff/activity" class="w-full mt-6 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors inline-block text-center">
               View Full Log
             </a>
           </div>

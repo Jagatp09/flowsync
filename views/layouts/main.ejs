@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <% if (typeof csrfToken !== 'undefined' && csrfToken) { %>
+    <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+  <% } %>
   <title><%= typeof title !== 'undefined' ? title + ' - FlowSync' : 'FlowSync' %></title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
@@ -32,5 +35,25 @@
 </head>
 <body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display">
   <%- body %>
+  <% if (typeof csrfToken !== 'undefined' && csrfToken) { %>
+    <script>
+      (function attachCsrfToken() {
+        const token = document.querySelector('meta[name="csrf-token"]')?.content;
+        if (!token) return;
+
+        document.querySelectorAll('form').forEach((form) => {
+          const method = (form.getAttribute('method') || 'GET').toUpperCase();
+          if (method === 'GET') return;
+          if (form.querySelector('input[name="_csrf"]')) return;
+
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = '_csrf';
+          input.value = token;
+          form.prepend(input);
+        });
+      })();
+    </script>
+  <% } %>
 </body>
 </html>

@@ -1,215 +1,119 @@
 const express = require('express');
 const router = express.Router();
-const { Checklist, ChecklistItem, ChecklistCompletion, User, ShiftReport, Shift, ShiftSummary, InventoryItem, InventoryLog, ShiftAssignment, ShiftNote, TaskAssignment } = require('../models');
+const { Checklist, ChecklistItem, ChecklistCompletion, User, ShiftReport, Shift, ShiftSummary, InventoryItem, InventoryLog, ShiftAssignment, ShiftNote, TaskAssignment, ShiftSwap, LeaveRequest, sequelize } = require('../models');
 const { Op } = require('sequelize');
-
-// Middleware to check authentication
-const requireAuth = (req, res, next) => {
-  if (!req.session.user) {
-    return res.redirect('/login');
-  }
-  next();
-};
-
-// Middleware to check manager role
-const requireManager = (req, res, next) => {
-  if (!req.session.user || req.session.user.role !== 'MANAGER') {
-    return res.status(403).send('Access denied. Manager access required.');
-  }
-  next();
-};
+const { requireAuth, requireManager } = require('../utils/middleware');
+const { buildManagerDashboardData, getDateRange } = require('../utils/dashboardMetrics');
+const { redirectWithFlash, renderWithFlash } = require('../utils/flash');
+const {
+  normalizeBoolean,
+  normalizeDate,
+  normalizeEmail,
+  normalizeEnum,
+  normalizeInteger,
+  normalizeTime,
+  timeToMinutes,
+  toArray,
+  toTrimmedString
+} = require('../utils/validation');
 
 // Apply middleware to all manager routes
 router.use(requireAuth, requireManager);
 
-// Helper function to get date range for a specific date
-function getDateRange(dateStr) {
-  const date = dateStr ? new Date(dateStr) : new Date();
-  const startOfDay = new Date(date.setHours(0, 0, 0, 0));
-  const endOfDay = new Date(date.setHours(23, 59, 59, 999));
-  return { startOfDay, endOfDay, dateStr: date.toISOString().split('T')[0] };
+const SHIFT_TYPES = ['OPENING', 'MID_SHIFT', 'CLOSING'];
+const CHECKLIST_SHIFT_TYPES = ['MORNING', 'MIDDAY', 'EVENING'];
+const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'];
+const USER_ROLES = ['MANAGER', 'STAFF'];
+const CHECKLIST_ITEM_CATEGORIES = ['General', 'Operations', 'Maintenance', 'Inventory', 'Management', 'Security'];
+
+function getTimeRange({ scheduledStart, scheduledEnd, duration }) {
+  const start = timeToMinutes(scheduledStart);
+  if (start === null) {
+    return null;
+  }
+
+  const endFromSchedule = timeToMinutes(scheduledEnd);
+  if (endFromSchedule !== null && endFromSchedule > start) {
+    return { start, end: endFromSchedule };
+  }
+
+  if (Number.isInteger(duration) && duration > 0) {
+    return { start, end: start + (duration * 60) };
+  }
+
+  return null;
+}
+
+function rangesOverlap(firstRange, secondRange) {
+  return firstRange.start < secondRange.end && secondRange.start < firstRange.end;
+}
+
+async function findOverlappingAssignment({
+  userId,
+  shiftDate,
+  scheduledStart,
+  scheduledEnd,
+  duration,
+  excludeShiftId = null,
+  transaction = null
+}) {
+  const candidateRange = getTimeRange({ scheduledStart, scheduledEnd, duration });
+  if (!candidateRange) {
+    return null;
+  }
+
+  const shiftWhere = { shiftDate };
+  if (excludeShiftId) {
+    shiftWhere.id = { [Op.ne]: excludeShiftId };
+  }
+
+  const existingAssignments = await ShiftAssignment.findAll({
+    where: { userId },
+    include: [{
+      model: Shift,
+      as: 'Shift',
+      required: true,
+      where: shiftWhere,
+      attributes: ['id', 'title', 'shiftType', 'scheduledStart', 'scheduledEnd', 'shiftDate']
+    }],
+    transaction
+  });
+
+  return existingAssignments.find((assignment) => {
+    const existingRange = getTimeRange({
+      scheduledStart: assignment.scheduledStart || assignment.Shift?.scheduledStart,
+      scheduledEnd: assignment.Shift?.scheduledEnd,
+      duration: assignment.duration
+    });
+
+    return existingRange ? rangesOverlap(candidateRange, existingRange) : false;
+  }) || null;
 }
 
 // GET /manager/dashboard
 router.get('/dashboard', async (req, res) => {
   try {
-    const { date } = req.query;
-    const { startOfDay, endOfDay, dateStr } = getDateRange(date);
+    const dashboardData = await buildManagerDashboardData(req.query.date);
 
-    const checklists = await Checklist.findAll({
-      where: { isActive: true },
-      include: [{ model: ChecklistItem, as: 'items' }],
-      order: [['shiftType', 'ASC'], ['id', 'ASC']]
-    });
-
-    const completions = await ChecklistCompletion.findAll({
-      where: { completedAt: { [Op.between]: [startOfDay, endOfDay] } },
-      include: [
-        { model: User, as: 'User', attributes: ['fullName'] },
-        { model: ChecklistItem, as: 'ChecklistItem', attributes: ['text', 'checklistId'] }
-      ]
-    });
-
-    const itemCompletionMap = {};
-    completions.forEach(c => { itemCompletionMap[c.checklistItemId] = c; });
-
-    let totalTasks = 0, completedTasks = 0, totalTime = 0, timeCount = 0;
-
-    const checklistProgress = checklists.map(cl => {
-      const items = cl.items;
-      const itemCount = items.length;
-      totalTasks += itemCount;
-      let completedCount = 0;
-      items.forEach(item => {
-        const completion = itemCompletionMap[item.id];
-        if (completion && completion.status === 'COMPLETED') {
-          completedCount++;
-          if (completion.completedAt) { totalTime += Math.random() * 15 + 5; timeCount++; }
-        }
-      });
-      completedTasks += completedCount;
-      const percent = itemCount > 0 ? Math.round((completedCount / itemCount) * 100) : 0;
-      let status = percent === 100 ? 'Completed' : percent >= 80 ? 'On Track' : percent > 0 ? 'In Progress' : 'Scheduled';
-      return { id: cl.id, title: cl.title, shiftType: cl.shiftType, totalItems: itemCount, completedItems: completedCount, percent, status };
-    });
-
-    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-    const pendingTasks = totalTasks - completedTasks;
-    const avgTaskTime = timeCount > 0 ? Math.round(totalTime / timeCount) : 0;
-
-    const today = new Date().toISOString().split('T')[0];
-    const { StaffAttendance } = require('../models');
-    const activeStaff = await StaffAttendance.findAll({
-      where: { date: today, status: 'CLOCKED_IN' },
-      include: [{ model: User, as: 'User', attributes: ['fullName'] }]
-    });
-    const activeStaffCount = activeStaff.length;
-
-    const allStaff = await User.findAll({ where: { role: 'STAFF' }, attributes: ['id', 'fullName'] });
-    const staffCount = allStaff.length;
-
-    const recentCompletions = await ChecklistCompletion.findAll({
-      where: { status: 'COMPLETED', completedAt: { [Op.ne]: null } },
-      include: [
-        { model: User, as: 'User', attributes: ['fullName'] },
-        { model: ChecklistItem, as: 'ChecklistItem', attributes: ['text'] }
-      ],
-      order: [['completedAt', 'DESC']], limit: 10
-    });
-
-    // Get staff who are clocked in today with their pending tasks
-    const clockedInStaff = await StaffAttendance.findAll({
-      where: {
-        date: today,
-        status: 'CLOCKED_IN'
-      },
-      include: [{ model: User, as: 'User', attributes: ['id', 'fullName'] }]
-    });
-
-    // Get all completions for today (grouped by user)
-    const todayCompletions = await ChecklistCompletion.findAll({
-      where: { date: today }
-    });
-
-    const completionByUser = {};
-    todayCompletions.forEach(c => {
-      if (!completionByUser[c.userId]) {
-        completionByUser[c.userId] = {};
-      }
-      completionByUser[c.userId][c.checklistItemId] = c;
-    });
-
-    // Build missing tasks with staff info
-    const missingTasks = [];
-    const staffMap = {};
-    clockedInStaff.forEach(s => {
-      staffMap[s.userId] = s.User ? s.User.fullName : 'Unknown';
-    });
-
-    checklists.forEach(cl => {
-      cl.items.forEach(item => {
-        // Check if any clocked-in staff has completed this task
-        let completedBy = null;
-        let completedStatus = 'PENDING';
-
-        for (const userId of Object.keys(staffMap)) {
-          const completion = completionByUser[userId]?.[item.id];
-          if (completion && completion.status === 'COMPLETED') {
-            completedBy = staffMap[userId];
-            completedStatus = 'COMPLETED';
-            break;
-          }
-        }
-
-        if (completedStatus !== 'COMPLETED') {
-          // Get which staff are clocked in but haven't completed this
-          const pendingStaff = Object.entries(staffMap)
-            .filter(([userId]) => !completionByUser[userId]?.[item.id] || completionByUser[userId][item.id].status !== 'COMPLETED')
-            .map(([userId, name]) => name);
-
-          missingTasks.push({
-            itemText: item.text,
-            checklistTitle: cl.title,
-            shiftType: cl.shiftType,
-            status: completedStatus,
-            pendingStaff: pendingStaff.length > 0 ? pendingStaff : null
-          });
-        }
-      });
-    });
-
-    // Get active shift
-    const activeShift = await Shift.findOne({
-      where: { status: 'ACTIVE' },
-      include: [
-        { model: User, as: 'createdByUser', attributes: ['fullName'] },
-        { model: ShiftAssignment, as: 'assignments', include: [{ model: User, as: 'User', attributes: ['fullName'] }] }
-      ]
-    });
-
-    // Get recent shift notes (from most recent closed shift)
-    const recentClosedShift = await Shift.findOne({
-      where: { status: 'CLOSED' },
-      order: [['endedAt', 'DESC']]
-    });
-
-    let recentShiftNotes = [];
-    if (recentClosedShift) {
-      recentShiftNotes = await ShiftNote.findAll({
-        where: { shiftId: recentClosedShift.id },
-        include: [{ model: User, as: 'author', attributes: ['fullName'] }],
-        order: [['createdAt', 'DESC']],
-        limit: 2
-      });
-    }
-
-    // Get low stock items (quantity <= reorder level)
-    const { InventoryItem } = require('../models');
-    const lowStockItems = await InventoryItem.findAll({
-      where: {
-        [Op.or]: [
-          { quantityOnHand: { [Op.lte]: sequelize.col('reorderLevel') } },
-          { quantityOnHand: { [Op.lt]: 10 } }
-        ]
-      },
-      order: [['quantityOnHand', 'ASC']],
-      limit: 10
-    });
-
-    res.render('manager/dashboard', {
-      title: 'Dashboard', activePage: 'dashboard', selectedDate: dateStr,
-      stats: { completionRate, pendingTasks, activeStaff: activeStaffCount, totalStaff: staffCount, totalTasks, completedTasks, avgTaskTime },
-      checklistProgress, recentCompletions, allStaff, missingTasks: missingTasks.slice(0, 10), lowStockItems: lowStockItems.map(i => i.toJSON()),
-      activeShift: activeShift ? activeShift.toJSON() : null,
-      recentShiftNotes: recentShiftNotes.map(n => n.toJSON())
+    renderWithFlash(req, res, 'manager/dashboard', {
+      title: 'Dashboard',
+      activePage: 'dashboard',
+      ...dashboardData
     });
   } catch (error) {
     console.error('Error loading manager dashboard:', error);
-    res.render('manager/dashboard', {
-      title: 'Dashboard', activePage: 'dashboard', selectedDate: new Date().toISOString().split('T')[0],
-      stats: { completionRate: 0, pendingTasks: 0, activeStaff: 0, totalStaff: 0, totalTasks: 0, completedTasks: 0, avgTaskTime: 0 },
-      checklistProgress: [], recentCompletions: [], allStaff: [], missingTasks: [], lowStockItems: [],
-      activeShift: null, recentShiftNotes: []
+    renderWithFlash(req, res, 'manager/dashboard', {
+      title: 'Dashboard',
+      activePage: 'dashboard',
+      selectedDate: new Date().toISOString().split('T')[0],
+      stats: { completionRate: 0, pendingTasks: 0, activeStaff: 0, totalStaff: 0, totalTasks: 0, completedTasks: 0, pendingApprovals: 0 },
+      checklistProgress: [],
+      recentCompletions: [],
+      allStaff: [],
+      missingTasks: [],
+      lowStockItems: [],
+      activeShift: null,
+      recentShiftNotes: []
     });
   }
 });
@@ -336,146 +240,10 @@ router.delete('/items/:id', async (req, res) => {
   }
 });
 
-router.get('/dash2', async (req, res) => {
-  try {
-    const { date } = req.query;
-    const { startOfDay, endOfDay, dateStr } = getDateRange(date);
-
-    const checklists = await Checklist.findAll({
-      where: { isActive: true },
-      include: [{ model: ChecklistItem, as: 'items' }],
-      order: [['shiftType', 'ASC'], ['id', 'ASC']]
-    });
-
-    const completions = await ChecklistCompletion.findAll({
-      where: { completedAt: { [Op.between]: [startOfDay, endOfDay] } },
-      include: [
-        { model: User, as: 'User', attributes: ['fullName'] },
-        { model: ChecklistItem, as: 'ChecklistItem', attributes: ['text', 'checklistId'] }
-      ]
-    });
-
-    const itemCompletionMap = {};
-    completions.forEach(c => { itemCompletionMap[c.checklistItemId] = c; });
-
-    let totalTasks = 0, completedTasks = 0, totalTime = 0, timeCount = 0;
-
-    const checklistProgress = checklists.map(cl => {
-      const items = cl.items;
-      const itemCount = items.length;
-      totalTasks += itemCount;
-      let completedCount = 0;
-      items.forEach(item => {
-        const completion = itemCompletionMap[item.id];
-        if (completion && completion.status === 'COMPLETED') {
-          completedCount++;
-          if (completion.completedAt) { totalTime += Math.random() * 15 + 5; timeCount++; }
-        }
-      });
-      completedTasks += completedCount;
-      const percent = itemCount > 0 ? Math.round((completedCount / itemCount) * 100) : 0;
-      let status = percent === 100 ? 'Completed' : percent >= 80 ? 'On Track' : percent > 0 ? 'In Progress' : 'Scheduled';
-      return { id: cl.id, title: cl.title, shiftType: cl.shiftType, totalItems: itemCount, completedItems: completedCount, percent, status };
-    });
-
-    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-    const pendingTasks = totalTasks - completedTasks;
-    const avgTaskTime = timeCount > 0 ? Math.round(totalTime / timeCount) : 0;
-
-    const today = new Date().toISOString().split('T')[0];
-    const { StaffAttendance } = require('../models');
-    const activeStaff = await StaffAttendance.findAll({
-      where: { date: today, status: 'CLOCKED_IN' },
-      include: [{ model: User, as: 'User', attributes: ['fullName'] }]
-    });
-    const activeStaffCount = activeStaff.length;
-
-    const allStaff = await User.findAll({ where: { role: 'STAFF' }, attributes: ['id', 'fullName'] });
-    const staffCount = allStaff.length;
-
-    const recentCompletions = await ChecklistCompletion.findAll({
-      where: { status: 'COMPLETED', completedAt: { [Op.ne]: null } },
-      include: [
-        { model: User, as: 'User', attributes: ['fullName'] },
-        { model: ChecklistItem, as: 'ChecklistItem', attributes: ['text'] }
-      ],
-      order: [['completedAt', 'DESC']], limit: 10
-    });
-
-    // Get staff who are clocked in today with their pending tasks
-    const clockedInStaff = await StaffAttendance.findAll({
-      where: {
-        date: today,
-        status: 'CLOCKED_IN'
-      },
-      include: [{ model: User, as: 'User', attributes: ['id', 'fullName'] }]
-    });
-
-    // Get all completions for today (grouped by user)
-    const todayCompletions = await ChecklistCompletion.findAll({
-      where: { date: today }
-    });
-
-    const completionByUser = {};
-    todayCompletions.forEach(c => {
-      if (!completionByUser[c.userId]) {
-        completionByUser[c.userId] = {};
-      }
-      completionByUser[c.userId][c.checklistItemId] = c;
-    });
-
-    // Build missing tasks with staff info
-    const missingTasks = [];
-    const staffMap = {};
-    clockedInStaff.forEach(s => {
-      staffMap[s.userId] = s.User ? s.User.fullName : 'Unknown';
-    });
-
-    checklists.forEach(cl => {
-      cl.items.forEach(item => {
-        // Check if any clocked-in staff has completed this task
-        let completedBy = null;
-        let completedStatus = 'PENDING';
-
-        for (const userId of Object.keys(staffMap)) {
-          const completion = completionByUser[userId]?.[item.id];
-          if (completion && completion.status === 'COMPLETED') {
-            completedBy = staffMap[userId];
-            completedStatus = 'COMPLETED';
-            break;
-          }
-        }
-
-        if (completedStatus !== 'COMPLETED') {
-          // Get which staff are clocked in but haven't completed this
-          const pendingStaff = Object.entries(staffMap)
-            .filter(([userId]) => !completionByUser[userId]?.[item.id] || completionByUser[userId][item.id].status !== 'COMPLETED')
-            .map(([userId, name]) => name);
-
-          missingTasks.push({
-            itemText: item.text,
-            checklistTitle: cl.title,
-            shiftType: cl.shiftType,
-            status: completedStatus,
-            pendingStaff: pendingStaff.length > 0 ? pendingStaff : null
-          });
-        }
-      });
-    });
-
-    res.render('manager/dashboard', {
-      title: 'Dashboard', activePage: 'dashboard', selectedDate: dateStr,
-      stats: { completionRate, pendingTasks, activeStaff: activeStaffCount, totalStaff: staffCount, totalTasks, completedTasks, avgTaskTime },
-      checklistProgress, recentCompletions, allStaff, missingTasks: missingTasks.slice(0, 10), lowStockItems: []
-    });
-  } catch (error) {
-    console.error('Error loading manager dashboard:', error);
-    res.render('manager/dashboard', {
-      title: 'Dashboard', activePage: 'dashboard', selectedDate: new Date().toISOString().split('T')[0],
-      stats: { completionRate: 0, pendingTasks: 0, activeStaff: 0, totalStaff: 0, totalTasks: 0, completedTasks: 0, avgTaskTime: 0 },
-      checklistProgress: [], recentCompletions: [], allStaff: [], missingTasks: [], lowStockItems: []
-    });
-  }
+router.get('/dash2', (req, res) => {
+  const params = new URLSearchParams(req.query).toString();
+  const suffix = params ? `?${params}` : '';
+  return res.redirect(`/manager/dashboard${suffix}`);
 });
 
 // GET /manager/reports
@@ -709,22 +477,32 @@ router.get('/checklists', async (req, res) => {
 // POST /manager/checklists
 router.post('/checklists', async (req, res) => {
   try {
-    const { title, shiftType, description } = req.body;
-    await Checklist.create({ title, shiftType, description });
+    const title = toTrimmedString(req.body.title, { maxLength: 255 });
+    const shiftType = normalizeEnum(req.body.shiftType, CHECKLIST_SHIFT_TYPES);
+    const description = toTrimmedString(req.body.description, { maxLength: 1000, allowEmpty: true });
+
+    if (!title || !shiftType) {
+      req.session.error = 'Checklist title and shift type are required.';
+      return req.session.save(() => res.redirect('/manager/checklists'));
+    }
+
+    await Checklist.create({
+      title,
+      shiftType,
+      description: description || null,
+      isActive: normalizeBoolean(req.body.isActive)
+    });
     req.session.success = 'Checklist created successfully!';
-    res.redirect('/manager/checklists');
+    req.session.save(() => res.redirect('/manager/checklists'));
   } catch (error) {
     req.session.error = 'Error creating checklist.';
-    res.redirect('/manager/checklists');
+    req.session.save(() => res.redirect('/manager/checklists'));
   }
 });
 
 // GET /manager/staff
 router.get('/staff', async (req, res) => {
   try {
-    console.log('GET /staff - Session success:', req.session.success);
-    console.log('GET /staff - Session error:', req.session.error);
-
     const staff = await User.findAll({
       where: { role: 'STAFF' },
       order: [['fullName', 'ASC']]
@@ -760,7 +538,6 @@ router.get('/staff', async (req, res) => {
       error: errorMsg,
       success: successMsg
     });
-    console.log('Rendered with success:', successMsg, 'error:', errorMsg);
     // Clear the session messages after displaying
     if (req.session.error) delete req.session.error;
     if (req.session.success) delete req.session.success;
@@ -783,62 +560,36 @@ router.get('/staff', async (req, res) => {
 // POST /manager/staff - Add new staff member
 router.post('/staff', async (req, res) => {
   try {
-    const { fullName, email, role, password } = req.body;
-    console.log('=== Adding staff ===');
-    console.log('FullName:', fullName);
-    console.log('Email:', email);
+    const fullName = toTrimmedString(req.body.fullName, { maxLength: 120 });
+    const email = normalizeEmail(req.body.email);
+    const role = normalizeEnum(req.body.role || 'STAFF', USER_ROLES);
+    const password = typeof req.body.password === 'string' ? req.body.password : '';
 
-    // Validate required fields
-    if (!fullName || !email || !password) {
-      console.log('Validation failed: missing required fields');
+    if (!fullName || !email || !role || password.length < 6) {
       req.session.error = 'Please fill in all required fields';
       return req.session.save(() => res.redirect('/manager/staff'));
     }
 
-    // Check if email already exists
     const existingUser = await User.findOne({ where: { email } });
-    console.log('Existing user check:', existingUser ? existingUser.id : 'none');
     if (existingUser) {
       req.session.error = 'A user with this email already exists';
       return req.session.save(() => res.redirect('/manager/staff'));
     }
 
-    // Validate password length
-    if (password.length < 6) {
-      console.log('Validation failed: password too short');
-      req.session.error = 'Password must be at least 6 characters';
-      return req.session.save(() => res.redirect('/manager/staff'));
-    }
-
-    // Create new staff member (password will be hashed by model's beforeCreate hook)
-    console.log('Creating user with:', { fullName, email, role, passwordHash: '***' });
     const newUser = await User.create({
       fullName,
       email,
       passwordHash: password,
-      role: role || 'STAFF',
+      role,
       isActive: true
     });
-    console.log('=== User created successfully:', newUser.id, '===');
-    const successMessage = `${fullName} has been added as ${role || 'Staff'}!`;
+    const successMessage = `${fullName} has been added as ${role === 'MANAGER' ? 'Manager' : 'Staff'}!`;
     req.session.success = successMessage;
-    console.log('Set session.success:', successMessage);
-    // Save session before redirect to ensure it's persisted
-    req.session.save((err) => {
-      if (err) {
-        console.error('Session save error:', err);
-      }
-      console.log('Session saved, redirecting...');
-      res.redirect('/manager/staff');
-    });
+    req.session.save(() => res.redirect('/manager/staff'));
   } catch (error) {
     console.error('=== Error adding staff:', error);
-    console.error('Stack:', error.stack);
-    req.session.error = 'Error adding staff member: ' + error.message;
-    req.session.save((err) => {
-      if (err) console.error('Session save error:', err);
-      res.redirect('/manager/staff');
-    });
+    req.session.error = 'Error adding staff member';
+    req.session.save(() => res.redirect('/manager/staff'));
   }
 });
 
@@ -897,8 +648,11 @@ router.get('/staff/:id/edit', async (req, res) => {
     res.render('manager/staff-edit', {
       title: 'Edit Staff',
       activePage: 'staff',
-      staffMember: staffMember.toJSON()
+      staffMember: staffMember.toJSON(),
+      error: req.session.error || null
     });
+
+    if (req.session.error) delete req.session.error;
   } catch (error) {
     console.error('Error loading staff edit:', error);
     req.session.error = 'Error loading staff edit form';
@@ -910,7 +664,11 @@ router.get('/staff/:id/edit', async (req, res) => {
 router.put('/staff/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { fullName, email, role, password, isActive } = req.body;
+    const fullName = toTrimmedString(req.body.fullName, { maxLength: 120 });
+    const email = normalizeEmail(req.body.email);
+    const role = normalizeEnum(req.body.role, USER_ROLES);
+    const password = typeof req.body.password === 'string' ? req.body.password : '';
+    const isActive = normalizeBoolean(req.body.isActive);
 
     const staffMember = await User.findByPk(id);
     if (!staffMember) {
@@ -918,7 +676,16 @@ router.put('/staff/:id', async (req, res) => {
       return req.session.save(() => res.redirect('/manager/staff'));
     }
 
-    // Check if email is being changed and if it's already taken
+    if (!fullName || !email || !role) {
+      req.session.error = 'Full name, email, and role are required.';
+      return req.session.save(() => res.redirect(`/manager/staff/${id}/edit`));
+    }
+
+    if (password && password.length < 6) {
+      req.session.error = 'Password must be at least 6 characters.';
+      return req.session.save(() => res.redirect(`/manager/staff/${id}/edit`));
+    }
+
     if (email !== staffMember.email) {
       const existingUser = await User.findOne({ where: { email } });
       if (existingUser) {
@@ -927,16 +694,14 @@ router.put('/staff/:id', async (req, res) => {
       }
     }
 
-    // Update fields
     const updateData = {
-      fullName: fullName || staffMember.fullName,
-      email: email || staffMember.email,
-      role: role || staffMember.role,
-      isActive: isActive === 'on' || isActive === 'true'
+      fullName,
+      email,
+      role,
+      isActive
     };
 
-    // Only update password if provided
-    if (password && password.length >= 6) {
+    if (password) {
       updateData.passwordHash = password;
     }
 
@@ -998,8 +763,13 @@ router.get('/shifts', async (req, res) => {
         assignments: s.assignments ? s.assignments.map(a => a.toJSON()) : []
       })),
       filters: { date, status },
-      activeShift: activeShift ? activeShift.toJSON() : null
+      activeShift: activeShift ? activeShift.toJSON() : null,
+      error: req.session.error || null,
+      success: req.session.success || null
     });
+
+    if (req.session.error) delete req.session.error;
+    if (req.session.success) delete req.session.success;
   } catch (error) {
     console.error('Error loading shifts:', error);
     res.render('manager/shifts', {
@@ -1007,37 +777,143 @@ router.get('/shifts', async (req, res) => {
       activePage: 'shifts',
       shifts: [],
       filters: {},
-      activeShift: null
+      activeShift: null,
+      error: req.session.error || null,
+      success: req.session.success || null
     });
+
+    if (req.session.error) delete req.session.error;
+    if (req.session.success) delete req.session.success;
   }
 });
 
 // GET /manager/shifts/new
-router.get('/shifts/new', (req, res) => {
-  res.render('manager/shifts-new', {
-    title: 'New Shift',
-    activePage: 'shifts'
-  });
+router.get('/shifts/new', async (req, res) => {
+  try {
+    const staff = await User.findAll({
+      where: { role: 'STAFF' },
+      order: [['fullName', 'ASC']]
+    });
+    res.render('manager/shifts-new', {
+      title: 'New Shift',
+      activePage: 'shifts',
+      staff,
+      error: req.session.error || null
+    });
+
+    if (req.session.error) delete req.session.error;
+  } catch (error) {
+    console.error('Error loading staff:', error);
+    res.render('manager/shifts-new', {
+      title: 'New Shift',
+      activePage: 'shifts',
+      staff: [],
+      error: req.session.error || null
+    });
+
+    if (req.session.error) delete req.session.error;
+  }
 });
 
 // POST /manager/shifts
 router.post('/shifts', async (req, res) => {
   try {
-    const { shiftDate, shiftType, notes } = req.body;
+    const shiftDate = normalizeDate(req.body.shiftDate);
+    const shiftType = normalizeEnum(req.body.shiftType, SHIFT_TYPES);
+    const title = toTrimmedString(req.body.title, { maxLength: 255, allowEmpty: true });
+    const notes = toTrimmedString(req.body.notes, { maxLength: 2000, allowEmpty: true });
+    const scheduledStart = normalizeTime(req.body.scheduledStart);
+    const scheduledEnd = normalizeTime(req.body.scheduledEnd);
+    const priority = normalizeEnum(req.body.priority || 'MEDIUM', PRIORITIES);
+    const submittedStaffIds = toArray(req.body.staffIds);
+    const submittedStaffStartTimes = toArray(req.body.staffStartTimes);
+    const submittedStaffDurations = toArray(req.body.staffDurations);
     const userId = req.session.user.id;
-    await Shift.create({
-      shiftDate,
-      shiftType,
-      notes,
-      status: 'SCHEDULED',
-      createdBy: userId,
-      managerId: userId
+
+    if (!shiftDate || !shiftType || !priority) {
+      req.session.error = 'Shift date, type, and priority are required.';
+      return req.session.save(() => res.redirect('/manager/shifts/new'));
+    }
+
+    const shiftRange = getTimeRange({ scheduledStart, scheduledEnd });
+    if ((req.body.scheduledStart || req.body.scheduledEnd) && !shiftRange) {
+      req.session.error = 'Scheduled shift times must include a valid start and end time.';
+      return req.session.save(() => res.redirect('/manager/shifts/new'));
+    }
+
+    const seenStaffIds = new Set();
+    const staffAssignments = [];
+
+    for (let index = 0; index < submittedStaffIds.length; index += 1) {
+      const parsedUserId = normalizeInteger(submittedStaffIds[index], { min: 1 });
+      const parsedStartTime = normalizeTime(submittedStaffStartTimes[index]) || scheduledStart;
+      const parsedDuration = normalizeInteger(submittedStaffDurations[index], { min: 1, max: 12, allowNull: true });
+
+      if (Number.isNaN(parsedUserId) || Number.isNaN(parsedDuration)) {
+        req.session.error = 'Assigned staff must have valid IDs and durations.';
+        return req.session.save(() => res.redirect('/manager/shifts/new'));
+      }
+
+      if (seenStaffIds.has(parsedUserId)) {
+        req.session.error = 'A staff member was selected more than once.';
+        return req.session.save(() => res.redirect('/manager/shifts/new'));
+      }
+
+      seenStaffIds.add(parsedUserId);
+      staffAssignments.push({
+        userId: parsedUserId,
+        scheduledStart: parsedStartTime,
+        duration: parsedDuration
+      });
+    }
+
+    await sequelize.transaction(async (transaction) => {
+      const shift = await Shift.create({
+        title: title || null,
+        shiftDate,
+        shiftType,
+        scheduledStart,
+        scheduledEnd,
+        priority,
+        notes: notes || null,
+        status: 'SCHEDULED',
+        createdBy: userId,
+        managerId: userId
+      }, { transaction });
+
+      for (const assignment of staffAssignments) {
+        const overlappingAssignment = await findOverlappingAssignment({
+          userId: assignment.userId,
+          shiftDate,
+          scheduledStart: assignment.scheduledStart,
+          scheduledEnd,
+          duration: assignment.duration,
+          transaction
+        });
+
+        if (overlappingAssignment) {
+          throw new Error('One or more staff members already have an overlapping shift assignment.');
+        }
+
+        await ShiftAssignment.create({
+          shiftId: shift.id,
+          userId: assignment.userId,
+          roleLabel: 'Staff',
+          assignedAt: new Date(),
+          scheduledStart: assignment.scheduledStart,
+          duration: assignment.duration
+        }, { transaction });
+      }
     });
+
     req.session.success = 'Shift created!';
-    res.redirect('/manager/shifts');
+    req.session.save(() => res.redirect('/manager/shifts'));
   } catch (error) {
-    req.session.error = 'Error creating shift.';
-    res.redirect('/manager/shifts');
+    if (error.message !== 'One or more staff members already have an overlapping shift assignment.') {
+      console.error('Error creating shift:', error);
+    }
+    req.session.error = error.message || 'Error creating shift.';
+    req.session.save(() => res.redirect('/manager/shifts/new'));
   }
 });
 
@@ -1059,7 +935,9 @@ router.post('/shifts/:id/start', async (req, res) => {
     res.redirect('/manager/shifts');
   } catch (error) {
     console.error('Error starting shift:', error);
-    res.redirect('/manager/shifts');
+    redirectWithFlash(req, res, '/manager/shifts', {
+      error: 'Error starting shift.'
+    });
   }
 });
 
@@ -1082,7 +960,9 @@ router.post('/shifts/:id/close', async (req, res) => {
     res.redirect('/manager/shifts');
   } catch (error) {
     console.error('Error closing shift:', error);
-    res.redirect('/manager/shifts');
+    redirectWithFlash(req, res, '/manager/shifts', {
+      error: 'Error closing shift.'
+    });
   }
 });
 
@@ -1191,8 +1071,13 @@ router.get('/shifts/:id', async (req, res) => {
       previousNotes: previousNotes.map(n => n.toJSON()),
       staff: allStaff.map(s => s.toJSON()),
       checklistStats,
-      tasks: tasks.map(t => t.toJSON())
+      tasks: tasks.map(t => t.toJSON()),
+      error: req.session.error || null,
+      success: req.session.success || null
     });
+
+    if (req.session.error) delete req.session.error;
+    if (req.session.success) delete req.session.success;
   } catch (error) {
     console.error('Error loading shift detail:', error);
     res.redirect('/manager/shifts');
@@ -1229,8 +1114,13 @@ router.get('/inventory', async (req, res) => {
       items: items.map(i => i.toJSON()),
       categories: categories.map(c => c.category),
       filters: { category, search },
-      lowStockCount
+      lowStockCount,
+      error: req.session.error || null,
+      success: req.session.success || null
     });
+
+    if (req.session.error) delete req.session.error;
+    if (req.session.success) delete req.session.success;
   } catch (error) {
     res.render('manager/inventory', {
       title: 'Inventory',
@@ -1238,8 +1128,13 @@ router.get('/inventory', async (req, res) => {
       items: [],
       categories: [],
       filters: {},
-      lowStockCount: 0
+      lowStockCount: 0,
+      error: req.session.error || null,
+      success: req.session.success || null
     });
+
+    if (req.session.error) delete req.session.error;
+    if (req.session.success) delete req.session.success;
   }
 });
 
@@ -1247,26 +1142,39 @@ router.get('/inventory', async (req, res) => {
 router.get('/inventory/new', (req, res) => {
   res.render('manager/inventory-new', {
     title: 'New Inventory Item',
-    activePage: 'inventory'
+    activePage: 'inventory',
+    error: req.session.error || null
   });
+
+  if (req.session.error) delete req.session.error;
 });
 
 // POST /manager/inventory
 router.post('/inventory', async (req, res) => {
   try {
-    const { name, category, quantityOnHand, unit, reorderLevel } = req.body;
+    const name = toTrimmedString(req.body.name, { maxLength: 120 });
+    const category = toTrimmedString(req.body.category, { maxLength: 80, allowEmpty: true });
+    const quantityOnHand = normalizeInteger(req.body.quantityOnHand, { min: 0 });
+    const unit = toTrimmedString(req.body.unit, { maxLength: 30, allowEmpty: true });
+    const reorderLevel = normalizeInteger(req.body.reorderLevel, { min: 0 });
+
+    if (!name || Number.isNaN(quantityOnHand) || Number.isNaN(reorderLevel)) {
+      req.session.error = 'Inventory name, quantity, and reorder level must be valid.';
+      return req.session.save(() => res.redirect('/manager/inventory/new'));
+    }
+
     await InventoryItem.create({
       name,
       category: category || 'Other',
-      quantityOnHand: parseInt(quantityOnHand) || 0,
+      quantityOnHand,
       unit: unit || '',
-      reorderLevel: parseInt(reorderLevel) || 0
+      reorderLevel
     });
     req.session.success = 'Inventory item created!';
-    res.redirect('/manager/inventory');
+    req.session.save(() => res.redirect('/manager/inventory'));
   } catch (error) {
     req.session.error = 'Error creating inventory item.';
-    res.redirect('/manager/inventory');
+    req.session.save(() => res.redirect('/manager/inventory/new'));
   }
 });
 
@@ -1288,8 +1196,13 @@ router.get('/inventory/:id/edit', async (req, res) => {
       title: 'Edit Inventory Item',
       activePage: 'inventory',
       item: item.toJSON(),
-      logs: logs.map(l => l.toJSON())
+      logs: logs.map(l => l.toJSON()),
+      error: req.session.error || null,
+      success: req.session.success || null
     });
+
+    if (req.session.error) delete req.session.error;
+    if (req.session.success) delete req.session.success;
   } catch (error) {
     res.redirect('/manager/inventory');
   }
@@ -1299,22 +1212,31 @@ router.get('/inventory/:id/edit', async (req, res) => {
 router.put('/inventory/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, category, quantityOnHand, unit, reorderLevel } = req.body;
+    const name = toTrimmedString(req.body.name, { maxLength: 120 });
+    const category = toTrimmedString(req.body.category, { maxLength: 80, allowEmpty: true });
+    const quantityOnHand = normalizeInteger(req.body.quantityOnHand, { min: 0 });
+    const unit = toTrimmedString(req.body.unit, { maxLength: 30, allowEmpty: true });
+    const reorderLevel = normalizeInteger(req.body.reorderLevel, { min: 0 });
     const item = await InventoryItem.findByPk(id);
     if (item) {
+      if (!name || Number.isNaN(quantityOnHand) || Number.isNaN(reorderLevel)) {
+        req.session.error = 'Inventory name, quantity, and reorder level must be valid.';
+        return req.session.save(() => res.redirect(`/manager/inventory/${id}/edit`));
+      }
+
       await item.update({
         name,
         category: category || 'Other',
-        quantityOnHand: parseInt(quantityOnHand) || 0,
+        quantityOnHand,
         unit: unit || '',
-        reorderLevel: parseInt(reorderLevel) || 0
+        reorderLevel
       });
       req.session.success = 'Inventory item updated!';
     }
-    res.redirect('/manager/inventory');
+    req.session.save(() => res.redirect('/manager/inventory'));
   } catch (error) {
     req.session.error = 'Error updating inventory item.';
-    res.redirect('/manager/inventory');
+    req.session.save(() => res.redirect(`/manager/inventory/${req.params.id}/edit`));
   }
 });
 
@@ -1322,32 +1244,43 @@ router.put('/inventory/:id', async (req, res) => {
 router.post('/inventory/:id/adjust', async (req, res) => {
   try {
     const { id } = req.params;
-    const { changeAmount, reason } = req.body;
+    const changeAmount = normalizeInteger(req.body.changeAmount);
+    const reason = toTrimmedString(req.body.reason, { maxLength: 255, allowEmpty: true });
     const userId = req.session.user.id;
 
     const item = await InventoryItem.findByPk(id);
     if (item) {
-      const newQuantity = item.quantityOnHand + parseInt(changeAmount);
+      if (Number.isNaN(changeAmount)) {
+        req.session.error = 'Adjustment amount must be a valid whole number.';
+        return req.session.save(() => res.redirect(`/manager/inventory/${id}/edit`));
+      }
+
+      const newQuantity = item.quantityOnHand + changeAmount;
+      if (newQuantity < 0) {
+        req.session.error = 'Inventory adjustments cannot reduce stock below zero.';
+        return req.session.save(() => res.redirect(`/manager/inventory/${id}/edit`));
+      }
+
       await InventoryLog.create({
         inventoryItemId: id,
-        changeAmount: parseInt(changeAmount),
-        reason,
+        changeAmount,
+        reason: reason || null,
         updatedBy: userId
       });
       await item.update({
-        quantityOnHand: newQuantity >= 0 ? newQuantity : 0
+        quantityOnHand: newQuantity
       });
 
       // Log activity
       const { logActivity, ACTIONS } = require('../utils/activityLogger');
-      await logActivity(userId, ACTIONS.INVENTORY_UPDATED, 'inventory', id, { itemName: item.name, changeAmount: parseInt(changeAmount), newQuantity: newQuantity >= 0 ? newQuantity : 0 });
+      await logActivity(userId, ACTIONS.INVENTORY_UPDATED, 'inventory', id, { itemName: item.name, changeAmount, newQuantity });
 
       req.session.success = `Stock adjusted by ${changeAmount}!`;
     }
-    res.redirect(`/manager/inventory/${id}/edit`);
+    req.session.save(() => res.redirect(`/manager/inventory/${id}/edit`));
   } catch (error) {
     req.session.error = 'Error adjusting stock.';
-    res.redirect('/manager/inventory');
+    req.session.save(() => res.redirect(`/manager/inventory/${req.params.id}/edit`));
   }
 });
 
@@ -1371,25 +1304,59 @@ router.delete('/inventory/:id', async (req, res) => {
 router.post('/shifts/:id/assign', async (req, res) => {
   try {
     const { id } = req.params;
-    const { userId, roleLabel } = req.body;
+    const userId = normalizeInteger(req.body.userId, { min: 1 });
+    const roleLabel = toTrimmedString(req.body.roleLabel, { maxLength: 60, allowEmpty: true });
     const managerId = req.session.user.id;
+
+    if (Number.isNaN(userId)) {
+      req.session.error = 'A valid staff member is required.';
+      return req.session.save(() => res.redirect(`/manager/shifts/${id}`));
+    }
+
+    const shift = await Shift.findByPk(id);
+    const staffMember = await User.findOne({ where: { id: userId, role: 'STAFF', isActive: true } });
+    if (!shift || !staffMember) {
+      req.session.error = 'Shift or staff member not found.';
+      return req.session.save(() => res.redirect(`/manager/shifts/${id}`));
+    }
+
+    const existingAssignment = await ShiftAssignment.findOne({
+      where: { shiftId: id, userId }
+    });
+    if (existingAssignment) {
+      req.session.error = 'That staff member is already assigned to this shift.';
+      return req.session.save(() => res.redirect(`/manager/shifts/${id}`));
+    }
+
+    const overlappingAssignment = await findOverlappingAssignment({
+      userId,
+      shiftDate: shift.shiftDate,
+      scheduledStart: shift.scheduledStart,
+      scheduledEnd: shift.scheduledEnd,
+      duration: null,
+      excludeShiftId: shift.id
+    });
+    if (overlappingAssignment) {
+      req.session.error = 'That staff member already has an overlapping shift assignment.';
+      return req.session.save(() => res.redirect(`/manager/shifts/${id}`));
+    }
 
     const assignment = await ShiftAssignment.create({
       shiftId: id,
-      userId: parseInt(userId),
+      userId,
       roleLabel: roleLabel || 'Staff'
     });
 
     // Log activity
     const { logActivity, ACTIONS } = require('../utils/activityLogger');
-    await logActivity(managerId, ACTIONS.STAFF_ASSIGNED, 'shift', id, { userId, roleLabel });
+    await logActivity(managerId, ACTIONS.STAFF_ASSIGNED, 'shift', id, { userId: assignment.userId, roleLabel: assignment.roleLabel });
 
     req.session.success = 'Staff assigned to shift!';
-    res.redirect(`/manager/shifts/${id}`);
+    req.session.save(() => res.redirect(`/manager/shifts/${id}`));
   } catch (error) {
     console.error('Error assigning staff:', error);
-    req.session.error = 'Error assigning staff.';
-    res.redirect('/manager/shifts');
+    req.session.error = error.message || 'Error assigning staff.';
+    req.session.save(() => res.redirect(`/manager/shifts/${req.params.id}`));
   }
 });
 
@@ -1425,8 +1392,14 @@ router.delete('/assignments/:id', async (req, res) => {
 router.post('/shifts/:id/notes', async (req, res) => {
   try {
     const { id } = req.params;
-    const { noteText } = req.body;
+    const noteText = toTrimmedString(req.body.noteText, { maxLength: 2000 });
     const userId = req.session.user.id;
+
+    if (!noteText) {
+      return redirectWithFlash(req, res, `/manager/shifts/${id}`, {
+        error: 'Shift note text is required.'
+      });
+    }
 
     await ShiftNote.create({
       shiftId: id,
@@ -1442,8 +1415,9 @@ router.post('/shifts/:id/notes', async (req, res) => {
     res.redirect(`/manager/shifts/${id}`);
   } catch (error) {
     console.error('Error adding note:', error);
-    req.session.error = 'Error adding note.';
-    res.redirect('/manager/shifts');
+    redirectWithFlash(req, res, `/manager/shifts/${req.params.id}`, {
+      error: 'Error adding note.'
+    });
   }
 });
 
@@ -1451,15 +1425,36 @@ router.post('/shifts/:id/notes', async (req, res) => {
 router.post('/shifts/:id/tasks', async (req, res) => {
   try {
     const { id } = req.params;
-    const { assignedTo, checklistItemId, customTaskText, priority, notes } = req.body;
+    const assignedTo = normalizeInteger(req.body.assignedTo, { min: 1 });
+    const checklistItemId = normalizeInteger(req.body.checklistItemId, { min: 1, allowNull: true });
+    const customTaskText = toTrimmedString(req.body.customTaskText, { maxLength: 255, allowEmpty: true });
+    const priority = normalizeEnum(req.body.priority || 'MEDIUM', PRIORITIES);
+    const notes = toTrimmedString(req.body.notes, { maxLength: 1000, allowEmpty: true });
     const userId = req.session.user.id;
+
+    if (Number.isNaN(assignedTo) || !priority || (!customTaskText && Number.isNaN(checklistItemId))) {
+      return redirectWithFlash(req, res, `/manager/shifts/${id}`, {
+        error: 'Assigned staff, priority, and a checklist task or custom task description are required.'
+      });
+    }
+
+    const [shift, assignee] = await Promise.all([
+      Shift.findByPk(id),
+      ShiftAssignment.findOne({ where: { shiftId: id, userId: assignedTo } })
+    ]);
+
+    if (!shift || !assignee) {
+      return redirectWithFlash(req, res, `/manager/shifts/${id}`, {
+        error: 'Tasks can only be assigned to staff already assigned to this shift.'
+      });
+    }
 
     await TaskAssignment.create({
       shiftId: id,
-      assignedTo: assignedTo,
-      checklistItemId: checklistItemId || null,
+      assignedTo,
+      checklistItemId: Number.isNaN(checklistItemId) ? null : checklistItemId,
       customTaskText: customTaskText || null,
-      priority: priority || 'MEDIUM',
+      priority,
       notes: notes || null,
       status: 'OPEN'
     });
@@ -1472,8 +1467,9 @@ router.post('/shifts/:id/tasks', async (req, res) => {
     res.redirect(`/manager/shifts/${id}`);
   } catch (error) {
     console.error('Error assigning task:', error);
-    req.session.error = 'Error assigning task.';
-    res.redirect('/manager/shifts');
+    redirectWithFlash(req, res, `/manager/shifts/${req.params.id}`, {
+      error: 'Error assigning task.'
+    });
   }
 });
 
@@ -1517,28 +1513,6 @@ router.delete('/tasks/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting task:', error);
     res.status(500).json({ error: 'Error deleting task' });
-  }
-});
-
-// DELETE /manager/assignments/:id - Remove staff from shift
-router.delete('/assignments/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const assignment = await ShiftAssignment.findByPk(id);
-    if (!assignment) {
-      return res.status(404).json({ error: 'Assignment not found' });
-    }
-
-    const shiftId = assignment.shiftId;
-    await assignment.destroy();
-
-    req.session.success = 'Staff removed from shift.';
-    res.redirect(`/manager/shifts/${shiftId}`);
-  } catch (error) {
-    console.error('Error removing assignment:', error);
-    req.session.error = 'Error removing assignment.';
-    res.redirect('/manager/shifts');
   }
 });
 
@@ -1663,6 +1637,250 @@ router.get('/reports/download/:type', async (req, res) => {
   } catch (error) {
     console.error('Error downloading report:', error);
     res.status(500).send('Error generating report');
+  }
+});
+
+// GET /manager/swap-requests - View all swap requests
+router.get('/swap-requests', async (req, res) => {
+  try {
+    const { status } = req.query;
+    let whereClause = {};
+    if (status) whereClause.status = status;
+
+    const swapRequests = await ShiftSwap.findAll({
+      where: whereClause,
+      include: [
+        { model: User, as: 'requester' },
+        { model: Shift, as: 'targetShift' },
+        { model: Shift, as: 'desiredShift' },
+        { model: User, as: 'targetUser' },
+        { model: User, as: 'approver' }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    renderWithFlash(req, res, 'manager/swap-requests', {
+      title: 'Shift Swap Requests',
+      activePage: 'swap-requests',
+      swapRequests,
+      filters: { status }
+    });
+  } catch (error) {
+    console.error('Error loading swap requests:', error);
+    renderWithFlash(req, res, 'manager/swap-requests', {
+      title: 'Shift Swap Requests',
+      activePage: 'swap-requests',
+      swapRequests: [],
+      filters: {}
+    });
+  }
+});
+
+// POST /manager/swap-requests/:id/approve - Approve swap request
+router.post('/swap-requests/:id/approve', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const managerId = req.session.user.id;
+    const comment = toTrimmedString(req.body.comment, { maxLength: 1000, allowEmpty: true });
+
+    const swapRequest = await ShiftSwap.findByPk(id);
+    if (!swapRequest) {
+      return redirectWithFlash(req, res, '/manager/swap-requests', {
+        error: 'Swap request not found'
+      });
+    }
+
+    if (swapRequest.status !== 'PENDING') {
+      return redirectWithFlash(req, res, '/manager/swap-requests', {
+        error: 'Only pending swap requests can be approved.'
+      });
+    }
+
+    if (swapRequest.targetUserId && swapRequest.targetAccepted !== true) {
+      return redirectWithFlash(req, res, '/manager/swap-requests', {
+        error: 'Wait for the target staff member to accept before approving this swap.'
+      });
+    }
+
+    // Update the swap request
+    await swapRequest.update({
+      status: 'APPROVED',
+      approvedBy: managerId,
+      approvedAt: new Date(),
+      managerComment: comment || null
+    });
+
+    // If swapping with another user, update the assignments
+    if (swapRequest.targetUserId) {
+      const targetAssignment = await ShiftAssignment.findOne({
+        where: { shiftId: swapRequest.targetShiftId, userId: swapRequest.targetUserId }
+      });
+      const requesterAssignment = await ShiftAssignment.findOne({
+        where: { shiftId: swapRequest.targetShiftId, userId: swapRequest.requesterId }
+      });
+
+      if (targetAssignment && requesterAssignment) {
+        // Swap user IDs
+        await targetAssignment.update({ userId: swapRequest.requesterId });
+        await requesterAssignment.update({ userId: swapRequest.targetUserId });
+      }
+    }
+
+    redirectWithFlash(req, res, '/manager/swap-requests', {
+      success: 'Swap request approved!'
+    });
+  } catch (error) {
+    console.error('Error approving swap request:', error);
+    redirectWithFlash(req, res, '/manager/swap-requests', {
+      error: 'Error approving swap request'
+    });
+  }
+});
+
+// POST /manager/swap-requests/:id/reject - Reject swap request
+router.post('/swap-requests/:id/reject', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const managerId = req.session.user.id;
+    const comment = toTrimmedString(req.body.comment, { maxLength: 1000, allowEmpty: true });
+
+    const swapRequest = await ShiftSwap.findByPk(id);
+    if (!swapRequest) {
+      return redirectWithFlash(req, res, '/manager/swap-requests', {
+        error: 'Swap request not found'
+      });
+    }
+
+    if (swapRequest.status !== 'PENDING') {
+      return redirectWithFlash(req, res, '/manager/swap-requests', {
+        error: 'Only pending swap requests can be rejected.'
+      });
+    }
+
+    await swapRequest.update({
+      status: 'REJECTED',
+      approvedBy: managerId,
+      approvedAt: new Date(),
+      managerComment: comment || null
+    });
+
+    redirectWithFlash(req, res, '/manager/swap-requests', {
+      success: 'Swap request rejected'
+    });
+  } catch (error) {
+    console.error('Error rejecting swap request:', error);
+    redirectWithFlash(req, res, '/manager/swap-requests', {
+      error: 'Error rejecting swap request'
+    });
+  }
+});
+
+// GET /manager/leave-requests - View all leave requests
+router.get('/leave-requests', async (req, res) => {
+  try {
+    const { status } = req.query;
+    let whereClause = {};
+    if (status) whereClause.status = status;
+
+    const leaveRequests = await LeaveRequest.findAll({
+      where: whereClause,
+      include: [
+        { model: User, as: 'user' },
+        { model: User, as: 'approver' }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    renderWithFlash(req, res, 'manager/leave-requests', {
+      title: 'Leave Requests',
+      activePage: 'leave-requests',
+      leaveRequests,
+      filters: { status }
+    });
+  } catch (error) {
+    console.error('Error loading leave requests:', error);
+    renderWithFlash(req, res, 'manager/leave-requests', {
+      title: 'Leave Requests',
+      activePage: 'leave-requests',
+      leaveRequests: [],
+      filters: {}
+    });
+  }
+});
+
+// POST /manager/leave-requests/:id/approve - Approve leave request
+router.post('/leave-requests/:id/approve', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const managerId = req.session.user.id;
+    const comment = toTrimmedString(req.body.comment, { maxLength: 1000, allowEmpty: true });
+
+    const leaveRequest = await LeaveRequest.findByPk(id);
+    if (!leaveRequest) {
+      return redirectWithFlash(req, res, '/manager/leave-requests', {
+        error: 'Leave request not found'
+      });
+    }
+
+    if (leaveRequest.status !== 'PENDING') {
+      return redirectWithFlash(req, res, '/manager/leave-requests', {
+        error: 'Only pending leave requests can be approved.'
+      });
+    }
+
+    await leaveRequest.update({
+      status: 'APPROVED',
+      approvedBy: managerId,
+      approvedAt: new Date(),
+      managerComment: comment || null
+    });
+
+    redirectWithFlash(req, res, '/manager/leave-requests', {
+      success: 'Leave request approved!'
+    });
+  } catch (error) {
+    console.error('Error approving leave request:', error);
+    redirectWithFlash(req, res, '/manager/leave-requests', {
+      error: 'Error approving leave request'
+    });
+  }
+});
+
+// POST /manager/leave-requests/:id/reject - Reject leave request
+router.post('/leave-requests/:id/reject', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const managerId = req.session.user.id;
+    const comment = toTrimmedString(req.body.comment, { maxLength: 1000, allowEmpty: true });
+
+    const leaveRequest = await LeaveRequest.findByPk(id);
+    if (!leaveRequest) {
+      return redirectWithFlash(req, res, '/manager/leave-requests', {
+        error: 'Leave request not found'
+      });
+    }
+
+    if (leaveRequest.status !== 'PENDING') {
+      return redirectWithFlash(req, res, '/manager/leave-requests', {
+        error: 'Only pending leave requests can be rejected.'
+      });
+    }
+
+    await leaveRequest.update({
+      status: 'REJECTED',
+      approvedBy: managerId,
+      approvedAt: new Date(),
+      managerComment: comment || null
+    });
+
+    redirectWithFlash(req, res, '/manager/leave-requests', {
+      success: 'Leave request rejected'
+    });
+  } catch (error) {
+    console.error('Error rejecting leave request:', error);
+    redirectWithFlash(req, res, '/manager/leave-requests', {
+      error: 'Error rejecting leave request'
+    });
   }
 });
 

@@ -15,14 +15,45 @@
       </div>
     </header>
 
-    <div class="p-8 max-w-4xl mx-auto">
-      <!-- Page Header -->
-      <div class="mb-8">
-        <h1 class="text-3xl font-black text-slate-900 dark:text-white">My Activity</h1>
-        <p class="text-slate-500 mt-1">View your task completion history</p>
+    <div class="p-8 max-w-5xl mx-auto space-y-6">
+      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div>
+          <h1 class="text-3xl font-black text-slate-900 dark:text-white">My Activity</h1>
+          <p class="text-slate-500 mt-1">A single timeline for checklists, tasks, attendance, leave, and swap updates.</p>
+        </div>
+        <div class="text-sm text-slate-500">
+          Updated for <%= new Date(stats.today).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+        </div>
       </div>
 
-      <!-- Activity List -->
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-3">
+          <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">check_circle</span>
+          <p class="text-sm text-emerald-700 dark:text-emerald-300"><%= success %></p>
+        </div>
+      <% } %>
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
+          <span class="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+          <p class="text-sm text-red-700 dark:text-red-300"><%= error %></p>
+        </div>
+      <% } %>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+          <p class="text-sm text-slate-500">Completed This Week</p>
+          <p class="text-3xl font-black mt-2 text-emerald-600"><%= stats.completedThisWeek %></p>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+          <p class="text-sm text-slate-500">Open Assigned Tasks</p>
+          <p class="text-3xl font-black mt-2 text-primary"><%= stats.openTasks %></p>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+          <p class="text-sm text-slate-500">Pending Requests</p>
+          <p class="text-3xl font-black mt-2 text-amber-500"><%= stats.pendingRequests %></p>
+        </div>
+      </div>
+
       <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
         <div class="p-6 border-b border-slate-200 dark:border-slate-800">
           <h3 class="font-bold text-lg">Recent Activity</h3>
@@ -30,47 +61,39 @@
         <div class="divide-y divide-slate-100 dark:divide-slate-800">
           <% if (activities && activities.length > 0) { %>
             <% activities.forEach(function(activity) { %>
-              <div class="p-4 px-6 flex items-center gap-4">
-                <% if (activity.status === 'COMPLETED') { %>
-                  <div class="size-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 flex items-center justify-center shrink-0">
-                    <span class="material-symbols-outlined text-[20px]">check_circle</span>
-                  </div>
-                <% } else if (activity.status === 'IN_PROGRESS') { %>
-                  <div class="size-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                    <span class="material-symbols-outlined text-[20px]">play_circle</span>
-                  </div>
-                <% } else if (activity.status === 'PARTIAL') { %>
-                  <div class="size-10 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 flex items-center justify-center shrink-0">
-                    <span class="material-symbols-outlined text-[20px]">pending</span>
-                  </div>
-                <% } else { %>
-                  <div class="size-10 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center shrink-0">
-                    <span class="material-symbols-outlined text-[20px]">circle</span>
-                  </div>
-                <% } %>
-                <div class="flex-1">
-                  <p class="font-medium text-slate-900 dark:text-white"><%= activity.ChecklistItem ? activity.ChecklistItem.text : 'Unknown task' %></p>
-                  <p class="text-sm text-slate-500">
-                    <% if (activity.completedAt) { %>
-                      Completed <%= new Date(activity.completedAt).toLocaleString() %>
-                    <% } else { %>
-                      <%= activity.status %>
-                    <% } %>
-                  </p>
+              <div class="p-5 px-6 flex items-start gap-4">
+                <div class="size-10 rounded-full shrink-0 flex items-center justify-center
+                  <% if (activity.type === 'checklist') { %>bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600<% } %>
+                  <% if (activity.type === 'task') { %>bg-blue-100 dark:bg-blue-900/30 text-blue-600<% } %>
+                  <% if (activity.type === 'attendance') { %>bg-primary/10 text-primary<% } %>
+                  <% if (activity.type === 'leave') { %>bg-amber-100 dark:bg-amber-900/30 text-amber-600<% } %>
+                  <% if (activity.type === 'swap') { %>bg-violet-100 dark:bg-violet-900/30 text-violet-600<% } %>">
+                  <span class="material-symbols-outlined text-[20px]">
+                    <% if (activity.type === 'checklist') { %>task_alt<% } %>
+                    <% if (activity.type === 'task') { %>assignment_turned_in<% } %>
+                    <% if (activity.type === 'attendance') { %>schedule<% } %>
+                    <% if (activity.type === 'leave') { %>event_available<% } %>
+                    <% if (activity.type === 'swap') { %>swap_horiz<% } %>
+                  </span>
                 </div>
-                <span class="px-3 py-1 text-xs font-bold rounded-full
-                  <% if (activity.status === 'COMPLETED') { %>bg-emerald-100 text-emerald-700<% }
-                  else if (activity.status === 'IN_PROGRESS') { %>bg-primary/10 text-primary<% }
-                  else if (activity.status === 'PARTIAL') { %>bg-amber-100 text-amber-700<% }
-                  else { %>bg-slate-100 text-slate-500<% } %>">
-                  <%= activity.status %>
-                </span>
+                <div class="flex-1">
+                  <div class="flex flex-wrap items-center gap-3">
+                    <p class="font-semibold text-slate-900 dark:text-white"><%= activity.title %></p>
+                    <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      <%= activity.status %>
+                    </span>
+                  </div>
+                  <p class="text-sm text-slate-500 mt-1"><%= activity.meta %></p>
+                </div>
+                <div class="text-xs text-slate-400 whitespace-nowrap">
+                  <%= new Date(activity.createdAt).toLocaleString() %>
+                </div>
               </div>
             <% }); %>
           <% } else { %>
             <div class="p-8 text-center text-slate-500">
               <span class="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-4">history</span>
-              <p>No activity yet. Complete some tasks to see your history here.</p>
+              <p>No activity yet. Your recent work and requests will appear here.</p>
             </div>
           <% } %>
         </div>

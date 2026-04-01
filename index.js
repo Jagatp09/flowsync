@@ -1,12 +1,16 @@
 const express = require('express');
 const session = require('express-session');
 const SequelizeStore = require('connect-session-sequelize')(session.Store);
+const csrf = require('csurf');
 const methodOverride = require('method-override');
 const expressLayouts = require('express-ejs-layouts');
 const path = require('path');
 const sequelize = require('./config/database');
 
 const app = express();
+const isProduction = process.env.NODE_ENV === 'production';
+
+app.locals.csrfToken = '';
 
 // Load environment variables
 require('dotenv').config();
@@ -38,11 +42,16 @@ const sessionStore = new SequelizeStore({
 
 app.use(
   session({
+    name: 'flowsync.sid',
     secret: process.env.SESSION_SECRET || 'flowsync-secret',
     store: sessionStore,
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
+    unset: 'destroy',
     cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: isProduction,
       maxAge: 1000 * 60 * 60 * 24 // 24 hours
     }
   })
@@ -51,10 +60,13 @@ app.use(
 // Create sessions table
 sessionStore.sync();
 
-// Make user available to all views
+app.use(csrf());
+
+// Make shared locals available to all views
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
   res.locals.activePage = '';
+  res.locals.csrfToken = typeof req.csrfToken === 'function' ? req.csrfToken() : null;
   next();
 });
 
@@ -78,6 +90,21 @@ app.get('/', (req, res) => {
 
 // Error handler - show detailed error in development
 app.use((err, req, res, next) => {
+  if (err.code !== 'EBADCSRFTOKEN') {
+    return next(err);
+  }
+
+  const message = 'Invalid or expired form submission. Please try again.';
+  if (req.accepts('html')) {
+    req.session.error = message;
+    const redirectTo = req.get('referer') || '/login';
+    return req.session.save(() => res.status(403).redirect(redirectTo));
+  }
+
+  return res.status(403).json({ error: message });
+});
+
+app.use((err, req, res, next) => {
   console.error('=== ERROR ===');
   console.error(err.stack);
   console.error('==========');
@@ -96,15 +123,19 @@ app.use((err, req, res, next) => {
 // Sync database and start server
 const PORT = process.env.PORT || 3000;
 
-sequelize.sync({ alter: true })
-  .then(() => {
-    console.log('Database synced');
-    app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
-    });
-  })
-  .catch(err => {
+async function startServer() {
+  await sequelize.sync({ alter: true });
+  console.log('Database synced');
+
+  return app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}
+
+if (require.main === module) {
+  startServer().catch((err) => {
     console.error('Unable to sync database:', err);
   });
+}
 
-module.exports = app;
+module.exports = { app, startServer };

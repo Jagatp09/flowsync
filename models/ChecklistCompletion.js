@@ -47,6 +47,12 @@ const ChecklistCompletion = sequelize.define('ChecklistCompletion', {
     {
       unique: true,
       fields: ['checklistItemId', 'userId', 'date']
+    },
+    {
+      fields: ['userId', 'date']
+    },
+    {
+      fields: ['checklistItemId', 'date']
     }
   ]
 });

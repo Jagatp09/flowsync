@@ -23,6 +23,16 @@
     </div>
   </header>
   <div class="p-8 space-y-8">
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+        <%= success %>
+      </div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <%= error %>
+      </div>
+    <% } %>
     <!-- Header Section -->
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
@@ -108,6 +118,7 @@
                         <span class="material-symbols-outlined text-[20px]">edit</span>
                       </a>
                       <form action="/manager/inventory/<%= item.id %>?_method=DELETE" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this item?');">
+                        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"/>
                         <button type="submit" class="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Delete">
                           <span class="material-symbols-outlined text-[20px]">delete</span>
                         </button>

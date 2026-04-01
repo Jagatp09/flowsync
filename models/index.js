@@ -13,6 +13,8 @@ const ShiftAssignment = require('./ShiftAssignment');
 const ShiftNote = require('./ShiftNote');
 const ActivityLog = require('./ActivityLog');
 const TaskAssignment = require('./TaskAssignment');
+const ShiftSwap = require('./ShiftSwap');
+const LeaveRequest = require('./LeaveRequest');
 
 // User - Checklist associations (through completions)
 User.hasMany(ChecklistCompletion, { foreignKey: 'userId' });
@@ -40,7 +42,7 @@ ShiftSummary.belongsTo(Shift, { foreignKey: 'shiftId' });
 
 // Shift - ShiftAssignment associations
 Shift.hasMany(ShiftAssignment, { foreignKey: 'shiftId', as: 'assignments' });
-ShiftAssignment.belongsTo(Shift, { foreignKey: 'shiftId' });
+ShiftAssignment.belongsTo(Shift, { foreignKey: 'shiftId', as: 'Shift' });
 
 // User - ShiftAssignment associations
 User.hasMany(ShiftAssignment, { foreignKey: 'userId', as: 'shiftAssignments' });
@@ -83,6 +85,22 @@ TaskAssignment.belongsTo(User, { foreignKey: 'assignedTo', as: 'assignee' });
 ChecklistItem.hasMany(TaskAssignment, { foreignKey: 'checklistItemId' });
 TaskAssignment.belongsTo(ChecklistItem, { foreignKey: 'checklistItemId' });
 
+// ShiftSwap associations
+User.hasMany(ShiftSwap, { foreignKey: 'requesterId', as: 'swapRequests' });
+ShiftSwap.belongsTo(User, { foreignKey: 'requesterId', as: 'requester' });
+ShiftSwap.belongsTo(Shift, { foreignKey: 'targetShiftId', as: 'targetShift' });
+ShiftSwap.belongsTo(Shift, { foreignKey: 'desiredShiftId', as: 'desiredShift' });
+User.hasMany(ShiftSwap, { foreignKey: 'targetUserId', as: 'swapTargetUser' });
+ShiftSwap.belongsTo(User, { foreignKey: 'targetUserId', as: 'targetUser' });
+User.hasMany(ShiftSwap, { foreignKey: 'approvedBy', as: 'swapApprover' });
+ShiftSwap.belongsTo(User, { foreignKey: 'approvedBy', as: 'approver' });
+
+// LeaveRequest associations
+User.hasMany(LeaveRequest, { foreignKey: 'userId', as: 'leaveRequests' });
+LeaveRequest.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+User.hasMany(LeaveRequest, { foreignKey: 'approvedBy', as: 'leaveApprover' });
+LeaveRequest.belongsTo(User, { foreignKey: 'approvedBy', as: 'approver' });
+
 module.exports = {
   sequelize,
   User,
@@ -98,5 +116,7 @@ module.exports = {
   ShiftAssignment,
   ShiftNote,
   ActivityLog,
-  TaskAssignment
+  TaskAssignment,
+  ShiftSwap,
+  LeaveRequest
 };

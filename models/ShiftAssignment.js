@@ -31,10 +31,54 @@ const ShiftAssignment = sequelize.define('ShiftAssignment', {
   assignedAt: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
+  },
+  scheduledStart: {
+    type: DataTypes.TIME,
+    allowNull: true
+  },
+  duration: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Duration in hours',
+    validate: {
+      min: 1,
+      max: 12
+    }
+  },
+  actualStart: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Actual clock-in time'
+  },
+  actualEnd: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Actual clock-out time'
+  },
+  actualDuration: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Actual duration in minutes'
+  },
+  status: {
+    type: DataTypes.ENUM('PENDING', 'CLOCKED_IN', 'COMPLETED', 'NO_SHOW'),
+    defaultValue: 'PENDING'
   }
 }, {
   tableName: 'shift_assignments',
-  timestamps: true
+  timestamps: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['shiftId', 'userId']
+    },
+    {
+      fields: ['userId']
+    },
+    {
+      fields: ['shiftId']
+    }
+  ]
 });
 
 module.exports = ShiftAssignment;

@@ -1,0 +1,131 @@
+<div class="flex h-screen overflow-hidden">
+  <%- include('../partials/staffSidebar', { activePage: 'incoming-swap-requests' }) %>
+
+  <!-- Main Content -->
+  <main class="flex-1 overflow-y-auto">
+    <!-- Header -->
+    <header class="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-8 py-4 flex items-center justify-between">
+      <div>
+        <h2 class="text-2xl font-black tracking-tight">Incoming Swap Requests</h2>
+        <p class="text-slate-500 text-sm">Requests where you are the target staff</p>
+      </div>
+    </header>
+
+    <div class="p-8 max-w-5xl mx-auto space-y-6">
+      <!-- Flash Messages -->
+      <% if (typeof success !== 'undefined' && success) { %>
+        <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-3">
+          <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">check_circle</span>
+          <p class="text-sm text-emerald-700 dark:text-emerald-300"><%= success %></p>
+        </div>
+      <% } %>
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
+          <span class="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+          <p class="text-sm text-red-700 dark:text-red-300"><%= error %></p>
+        </div>
+      <% } %>
+
+      <!-- Incoming Swap Requests -->
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div class="p-6 border-b border-slate-200 dark:border-slate-800">
+          <h3 class="font-bold text-lg">Swap Requests For You</h3>
+        </div>
+        <div class="divide-y divide-slate-100 dark:divide-slate-800">
+          <% if (incomingRequests && incomingRequests.length > 0) { %>
+            <% incomingRequests.forEach(function(req) { %>
+              <div class="p-6">
+                <div class="flex items-start justify-between">
+                  <div class="flex-1">
+                    <div class="flex items-center gap-3 mb-2">
+                      <span class="font-bold text-slate-900 dark:text-white">
+                        Request from: <%= req.requester ? req.requester.fullName : 'Unknown' %>
+                      </span>
+                      <% if (req.status === 'PENDING') { %>
+                        <% if (req.targetAccepted === true) { %>
+                          <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">You Accepted</span>
+                        <% } else if (req.targetAccepted === false) { %>
+                          <span class="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded">You Rejected</span>
+                        <% } else { %>
+                          <span class="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded">Pending</span>
+                        <% } %>
+                      <% } else if (req.status === 'APPROVED') { %>
+                        <span class="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded">Approved</span>
+                      <% } else if (req.status === 'REJECTED') { %>
+                        <span class="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded">Rejected</span>
+                      <% } %>
+                    </div>
+                    <p class="text-sm text-slate-500">
+                      <strong>Shift:</strong>
+                      <%= req.targetShift ? req.targetShift.title || req.targetShift.shiftType : 'Unknown' %>
+                      -
+                      <%= req.targetShift ? new Date(req.targetShift.shiftDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '' %>
+                      <%= req.targetShift && req.targetShift.scheduledStart ? ' - ' + req.targetShift.scheduledStart : '' %>
+                    </p>
+                    <% if (req.reason) { %>
+                      <p class="text-sm text-slate-600 dark:text-slate-400 mt-2"><strong>Reason:</strong> <%= req.reason %></p>
+                    <% } %>
+                    <% if (req.targetRejectionReason) { %>
+                      <p class="text-sm text-red-600 dark:text-red-400 mt-2"><strong>Your rejection reason:</strong> <%= req.targetRejectionReason %></p>
+                    <% } %>
+                    <% if (req.managerComment) { %>
+                      <div class="mt-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                        <p class="text-xs font-bold text-slate-500 mb-1">Manager Comment:</p>
+                        <p class="text-sm text-slate-700 dark:text-slate-300"><%= req.managerComment %></p>
+                      </div>
+                    <% } %>
+                  </div>
+                  <div class="text-xs text-slate-400">
+                    <%= new Date(req.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %>
+                  </div>
+                </div>
+                <% if (req.status === 'PENDING' && req.targetAccepted === null) { %>
+                  <div class="flex gap-3 mt-4">
+                    <form action="/staff/swap-requests/<%= req.id %>/accept" method="POST" class="inline">
+                      <button type="submit" class="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm font-bold hover:bg-emerald-600">Accept</button>
+                    </form>
+                    <button onclick="openRejectModal('<%= req.id %>')" class="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-bold hover:bg-red-600">Reject</button>
+                  </div>
+                <% } %>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <div class="p-8 text-center text-slate-500">
+              <span class="material-symbols-outlined text-4xl mb-2">swap_horiz</span>
+              <p>No incoming swap requests</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Reject Modal -->
+<dialog id="rejectModal" class="modal p-6 rounded-xl border border-slate-200 dark:border-slate-700 backdrop:bg-slate-900/50 w-full max-w-md">
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-bold text-slate-900 dark:text-white">Reject Swap Request</h3>
+      <button onclick="document.getElementById('rejectModal').close()" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+        <span class="material-symbols-outlined text-slate-500">close</span>
+      </button>
+    </div>
+    <form id="rejectForm" method="POST">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Reason (optional)</label>
+        <textarea name="reason" rows="3" placeholder="Why are you rejecting this request?" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"></textarea>
+      </div>
+      <div class="flex gap-3 mt-4">
+        <button type="button" onclick="document.getElementById('rejectModal').close()" class="flex-1 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
+        <button type="submit" class="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">Reject</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<script>
+function openRejectModal(id) {
+  document.getElementById('rejectForm').action = '/staff/swap-requests/' + id + '/reject';
+  document.getElementById('rejectModal').showModal();
+}
+</script>

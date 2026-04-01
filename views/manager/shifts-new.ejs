@@ -14,22 +14,134 @@
     <!-- Form Card -->
     <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
       <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-6">Create New Shift</h3>
+      <% if (typeof error !== 'undefined' && error) { %>
+        <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <%= error %>
+        </div>
+      <% } %>
 
       <form action="/manager/shifts" method="POST" class="space-y-6">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"/>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Shift Title (optional)</label>
+          <input type="text" name="title" placeholder="e.g., Morning Rush, Holiday Shift"
+            class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+        </div>
+
         <div>
           <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Shift Date</label>
           <input type="date" name="shiftDate" required value="<%= new Date().toISOString().split('T')[0] %>"
             class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Shift Type</label>
-          <select name="shiftType" required class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-            <option value="OPENING">Opening Shift</option>
-            <option value="MID_SHIFT">Mid Shift</option>
-            <option value="CLOSING">Closing Shift</option>
-          </select>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Scheduled Start</label>
+            <input type="time" name="scheduledStart"
+              class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Scheduled End</label>
+            <input type="time" name="scheduledEnd"
+              class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"/>
+          </div>
         </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Shift Type</label>
+            <select name="shiftType" required class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+              <option value="OPENING">Opening Shift</option>
+              <option value="MID_SHIFT">Mid Shift</option>
+              <option value="CLOSING">Closing Shift</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Priority</label>
+            <select name="priority" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+              <option value="LOW">Low</option>
+              <option value="MEDIUM" selected>Medium</option>
+              <option value="HIGH">High</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Assign Staff (optional)</label>
+          <% if (staff && staff.length > 0) { %>
+            <div class="mb-3">
+              <select id="staffSelect" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                <option value="">Select a staff member...</option>
+                <% staff.forEach(function(s) { %>
+                  <option value="<%= s.id %>" data-name="<%= s.fullName %>"><%= s.fullName %></option>
+                <% }); %>
+              </select>
+              <button type="button" onclick="addStaff()" class="mt-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700">
+                + Add Staff
+              </button>
+            </div>
+
+            <div id="staffList" class="space-y-3">
+              <!-- Staff assignments will be added here -->
+            </div>
+
+            <template id="staffTemplate">
+              <div class="staff-assignment flex flex-wrap items-end gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                <input type="hidden" name="staffIds" value="">
+                <div class="flex-1 min-w-[150px]">
+                  <p class="text-sm font-bold text-slate-700 dark:text-slate-300 staff-name"></p>
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-1">Start Time</label>
+                  <input type="time" name="staffStartTimes" class="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-1">Duration (hrs)</label>
+                  <input type="number" name="staffDurations" min="1" max="12" value="8" class="w-20 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm">
+                </div>
+                <button type="button" onclick="removeStaff(this)" class="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded">
+                  <span class="material-symbols-outlined text-[20px]">delete</span>
+                </button>
+              </div>
+            </template>
+          <% } else { %>
+            <p class="text-sm text-slate-400">No staff members available</p>
+          <% } %>
+        </div>
+
+        <script>
+          const assignedStaffIds = new Set();
+
+          function addStaff() {
+            const select = document.getElementById('staffSelect');
+            const staffId = select.value;
+            const staffName = select.options[select.selectedIndex]?.dataset.name;
+
+            if (!staffId || assignedStaffIds.has(staffId)) {
+              alert('Please select a staff member or they are already assigned.');
+              return;
+            }
+
+            assignedStaffIds.add(staffId);
+
+            const template = document.getElementById('staffTemplate');
+            const clone = template.content.cloneNode(true);
+            const div = clone.querySelector('.staff-assignment');
+
+            div.querySelector('[name="staffIds"]').value = staffId;
+            div.querySelector('.staff-name').textContent = staffName;
+
+            document.getElementById('staffList').appendChild(clone);
+            select.value = '';
+          }
+
+          function removeStaff(btn) {
+            const div = btn.closest('.staff-assignment');
+            const staffId = div.querySelector('[name="staffIds"]').value;
+            assignedStaffIds.delete(staffId);
+            div.remove();
+          }
+        </script>
 
         <div>
           <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Notes (optional)</label>

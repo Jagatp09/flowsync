@@ -1,55 +1,44 @@
 const express = require('express');
 const router = express.Router();
-const { Checklist, ChecklistItem, ChecklistCompletion, User, StaffAttendance, InventoryItem, Shift, ShiftAssignment, ShiftNote, TaskAssignment } = require('../models');
-
-// Middleware to check authentication
-const requireAuth = (req, res, next) => {
-  if (!req.session.user) {
-    return res.redirect('/login');
-  }
-  next();
-};
-
-// Middleware to check staff role (allows both STAFF and MANAGER)
-const requireStaff = (req, res, next) => {
-  if (!req.session.user) {
-    return res.redirect('/login');
-  }
-  next();
-};
+const { ChecklistItem, ChecklistCompletion, User, StaffAttendance, InventoryItem, Shift, ShiftAssignment, ShiftNote, TaskAssignment, ShiftSwap, LeaveRequest } = require('../models');
+const { Op } = require('sequelize');
+const { requireAuth, requireStaff } = require('../utils/middleware');
+const { getChecklistProgressForUser, getAssignedChecklistShiftTypes } = require('../utils/shiftAccess');
+const { redirectWithFlash, renderWithFlash } = require('../utils/flash');
+const { normalizeDate, normalizeEnum, normalizeInteger, toTrimmedString } = require('../utils/validation');
 
 // Apply middleware to all staff routes
 router.use(requireAuth, requireStaff);
+
+const LEAVE_TYPES = ['ANNUAL', 'SICK', 'PERSONAL', 'EMERGENCY', 'OTHER'];
+const TASK_STATUSES = ['OPEN', 'DONE'];
+
+function getToday() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function formatShiftWindow(shift) {
+  if (!shift) {
+    return 'No shift assigned';
+  }
+
+  if (shift.scheduledStart && shift.scheduledEnd) {
+    return `${shift.scheduledStart} - ${shift.scheduledEnd}`;
+  }
+
+  if (shift.scheduledStart) {
+    return `${shift.scheduledStart} start`;
+  }
+
+  return 'Time to be confirmed';
+}
 
 // GET /staff/dashboard
 router.get('/dashboard', async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const today = new Date().toISOString().split('T')[0];
-
-    // Get all checklists with items
-    const checklists = await Checklist.findAll({
-      where: { isActive: true },
-      include: [{
-        model: ChecklistItem,
-        as: 'items'
-      }],
-      order: [['shiftType', 'ASC']]
-    });
-
-    // Get user's completions for today
-    const completions = await ChecklistCompletion.findAll({
-      where: { userId: userId, date: today }
-    });
-
-    const completionMap = {};
-    completions.forEach(c => {
-      completionMap[c.checklistItemId] = c;
-    });
-
-    let totalTasks = 0;
-    let completedTasks = 0;
-    let inProgressTasks = 0;
+    const today = getToday();
+    const { stats, completions } = await getChecklistProgressForUser(userId, today);
 
     // Get recent completed tasks
     const recentCompleted = completions
@@ -66,25 +55,6 @@ router.get('/dashboard', async (req, res) => {
       };
     }));
 
-    checklists.forEach(cl => {
-      cl.items.forEach(item => {
-        totalTasks++;
-        const completion = completionMap[item.id];
-        if (completion) {
-          if (completion.status === 'COMPLETED') completedTasks++;
-          else if (completion.status === 'IN_PROGRESS') inProgressTasks++;
-        }
-      });
-    });
-
-    const stats = {
-      total: totalTasks,
-      completed: completedTasks,
-      remaining: totalTasks - completedTasks - inProgressTasks,
-      inProgress: inProgressTasks,
-      percentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
-    };
-
     // Get today's attendance record
     let attendance = await StaffAttendance.findOne({
       where: { userId: userId, date: today }
@@ -96,23 +66,47 @@ router.get('/dashboard', async (req, res) => {
         userId: userId,
         date: today,
         status: 'NOT_STARTED',
-        nextShiftDate: getNextShiftDate()
+        nextShiftDate: null
       });
     }
 
-    // Calculate next shift date (demo: tomorrow)
-    const nextShiftDate = attendance.nextShiftDate || getNextShiftDate();
-
-    // Get today's assigned shift
-    const todayShift = await Shift.findOne({
-      where: { shiftDate: today, status: { [require('sequelize').Op.or]: ['SCHEDULED', 'ACTIVE'] } },
+    const todayAssignment = await ShiftAssignment.findOne({
+      where: { userId },
       include: [{
-        model: ShiftAssignment,
-        as: 'assignments',
-        where: { userId: userId },
-        required: false
-      }]
+        model: Shift,
+        as: 'Shift',
+        required: true,
+        where: {
+          shiftDate: today,
+          status: { [Op.in]: ['SCHEDULED', 'ACTIVE'] }
+        }
+      }],
+      order: [[{ model: Shift, as: 'Shift' }, 'scheduledStart', 'ASC']]
     });
+    const todayShift = todayAssignment?.Shift || null;
+
+    const nextAssignment = await ShiftAssignment.findOne({
+      where: { userId },
+      include: [{
+        model: Shift,
+        as: 'Shift',
+        required: true,
+        where: {
+          shiftDate: { [Op.gte]: today },
+          status: { [Op.in]: ['SCHEDULED', 'ACTIVE'] }
+        }
+      }],
+      order: [
+        [{ model: Shift, as: 'Shift' }, 'shiftDate', 'ASC'],
+        [{ model: Shift, as: 'Shift' }, 'scheduledStart', 'ASC']
+      ]
+    });
+    const nextShift = nextAssignment?.Shift || null;
+    const nextShiftDate = nextShift?.shiftDate || attendance.nextShiftDate || null;
+
+    if (attendance.nextShiftDate !== nextShiftDate) {
+      await attendance.update({ nextShiftDate });
+    }
 
     // Get previous shift notes if any
     let shiftNotes = [];
@@ -143,45 +137,61 @@ router.get('/dashboard', async (req, res) => {
       order: [['priority', 'DESC'], ['createdAt', 'DESC']]
     });
 
-    res.render('staff/dashboard', {
+    renderWithFlash(req, res, 'staff/dashboard', {
       title: 'Dashboard',
       activePage: 'dashboard',
-      stats: stats,
+      stats,
       recentTasks: recentTasks,
-      attendance: attendance,
-      nextShiftDate: nextShiftDate,
+      attendance: attendance.toJSON ? attendance.toJSON() : attendance,
+      nextShiftDate,
       myShift: todayShift ? todayShift.toJSON() : null,
+      nextShift: nextShift ? nextShift.toJSON() : null,
+      shiftWindow: formatShiftWindow(todayShift),
       shiftNotes: shiftNotes.map(n => n.toJSON()),
-      myTasks: myTasks.map(t => t.toJSON())
+      myTasks: myTasks.map(t => t.toJSON()),
+      assignedShiftTypes: await getAssignedChecklistShiftTypes(userId, today)
     });
   } catch (error) {
     console.error('Error loading staff dashboard:', error);
-    res.render('staff/dashboard', {
+    renderWithFlash(req, res, 'staff/dashboard', {
       title: 'Dashboard',
       activePage: 'dashboard',
       stats: { total: 0, completed: 0, remaining: 0, inProgress: 0, percentage: 0 },
       recentTasks: [],
       myTasks: [],
       attendance: { status: 'NOT_STARTED' },
-      nextShiftDate: getNextShiftDate(),
+      nextShiftDate: null,
       myShift: null,
-      shiftNotes: []
+      nextShift: null,
+      shiftWindow: 'No shift assigned',
+      shiftNotes: [],
+      assignedShiftTypes: []
     });
   }
 });
-
-// Helper function to get next shift date (demo: tomorrow)
-function getNextShiftDate() {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toISOString().split('T')[0];
-}
 
 // POST /staff/clock-out
 router.post('/clock-out', async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getToday();
+    const nextAssignment = await ShiftAssignment.findOne({
+      where: { userId },
+      include: [{
+        model: Shift,
+        as: 'Shift',
+        required: true,
+        where: {
+          shiftDate: { [Op.gt]: today },
+          status: { [Op.in]: ['SCHEDULED', 'ACTIVE'] }
+        }
+      }],
+      order: [
+        [{ model: Shift, as: 'Shift' }, 'shiftDate', 'ASC'],
+        [{ model: Shift, as: 'Shift' }, 'scheduledStart', 'ASC']
+      ]
+    });
+    const nextShiftDate = nextAssignment?.Shift?.shiftDate || null;
 
     // Find or create today's attendance record
     let attendance = await StaffAttendance.findOne({
@@ -195,23 +205,25 @@ router.post('/clock-out', async (req, res) => {
         clockInTime: new Date(),
         status: 'CLOCKED_OUT',
         clockOutTime: new Date(),
-        nextShiftDate: getNextShiftDate()
+        nextShiftDate
       });
     } else {
       // Update existing record
       await attendance.update({
         clockOutTime: new Date(),
         status: 'CLOCKED_OUT',
-        nextShiftDate: getNextShiftDate()
+        nextShiftDate
       });
     }
 
-    req.session.success = 'Successfully clocked out! Have a great day.';
-    res.redirect('/staff/dashboard');
+    redirectWithFlash(req, res, '/staff/dashboard', {
+      success: 'Successfully clocked out! Have a great day.'
+    });
   } catch (error) {
     console.error('Error clocking out:', error);
-    req.session.error = 'Error clocking out. Please try again.';
-    res.redirect('/staff/dashboard');
+    redirectWithFlash(req, res, '/staff/dashboard', {
+      error: 'Error clocking out. Please try again.'
+    });
   }
 });
 
@@ -219,7 +231,7 @@ router.post('/clock-out', async (req, res) => {
 router.post('/clock-in', async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getToday();
 
     // Find or create today's attendance record
     let attendance = await StaffAttendance.findOne({
@@ -232,7 +244,7 @@ router.post('/clock-in', async (req, res) => {
         date: today,
         clockInTime: new Date(),
         status: 'CLOCKED_IN',
-        nextShiftDate: getNextShiftDate()
+        nextShiftDate: null
       });
     } else {
       // Update existing record
@@ -242,12 +254,14 @@ router.post('/clock-in', async (req, res) => {
       });
     }
 
-    req.session.success = 'Welcome back! You are now clocked in.';
-    res.redirect('/staff/dashboard');
+    redirectWithFlash(req, res, '/staff/dashboard', {
+      success: 'Welcome back! You are now clocked in.'
+    });
   } catch (error) {
     console.error('Error clocking in:', error);
-    req.session.error = 'Error clocking in. Please try again.';
-    res.redirect('/staff/dashboard');
+    redirectWithFlash(req, res, '/staff/dashboard', {
+      error: 'Error clocking in. Please try again.'
+    });
   }
 });
 
@@ -256,49 +270,261 @@ router.get('/tasks', (req, res) => {
   res.redirect('/checklists/daily');
 });
 
-// GET /staff/activity - placeholder
+// GET /staff/activity
 router.get('/activity', async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getToday();
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 6);
+    weekStart.setHours(0, 0, 0, 0);
 
-    // Get recent completions for this user
-    const completions = await ChecklistCompletion.findAll({
-      where: { userId: userId },
-      include: [{ model: ChecklistItem, as: 'ChecklistItem', attributes: ['text'] }],
-      order: [['completedAt', 'DESC']],
-      limit: 20
-    });
+    const [completions, recentTasks, attendanceLogs, leaveRequests, swapRequests, openTasks] = await Promise.all([
+      ChecklistCompletion.findAll({
+        where: { userId },
+        include: [{ model: ChecklistItem, as: 'ChecklistItem', attributes: ['text'] }],
+        order: [['completedAt', 'DESC'], ['createdAt', 'DESC']],
+        limit: 15
+      }),
+      TaskAssignment.findAll({
+        where: { assignedTo: userId },
+        include: [{ model: Shift, attributes: ['shiftDate', 'shiftType'] }],
+        order: [['updatedAt', 'DESC']],
+        limit: 10
+      }),
+      StaffAttendance.findAll({
+        where: { userId },
+        order: [['date', 'DESC']],
+        limit: 7
+      }),
+      LeaveRequest.findAll({
+        where: { userId },
+        order: [['createdAt', 'DESC']],
+        limit: 5
+      }),
+      ShiftSwap.findAll({
+        where: {
+          [Op.or]: [
+            { requesterId: userId },
+            { targetUserId: userId }
+          ]
+        },
+        include: [{ model: Shift, as: 'targetShift' }],
+        order: [['createdAt', 'DESC']],
+        limit: 5
+      }),
+      TaskAssignment.count({
+        where: { assignedTo: userId, status: 'OPEN' }
+      })
+    ]);
 
-    res.render('staff/activity', {
+    const activityFeed = [
+      ...completions.map((activity) => ({
+        id: `completion-${activity.id}`,
+        type: 'checklist',
+        status: activity.status,
+        title: activity.ChecklistItem ? activity.ChecklistItem.text : 'Checklist task',
+        meta: activity.completedAt ? `Completed on ${new Date(activity.completedAt).toLocaleString()}` : activity.status,
+        createdAt: activity.completedAt || activity.createdAt
+      })),
+      ...recentTasks.map((task) => ({
+        id: `task-${task.id}`,
+        type: 'task',
+        status: task.status,
+        title: task.customTaskText || 'Assigned task',
+        meta: task.Shift ? `${task.Shift.shiftType} shift on ${new Date(task.Shift.shiftDate).toLocaleDateString()}` : 'Task assignment updated',
+        createdAt: task.updatedAt || task.createdAt
+      })),
+      ...attendanceLogs.map((attendance) => ({
+        id: `attendance-${attendance.id}-${attendance.date}`,
+        type: 'attendance',
+        status: attendance.status,
+        title: `Attendance ${attendance.status.toLowerCase().replace('_', ' ')}`,
+        meta: new Date(attendance.date).toLocaleDateString(),
+        createdAt: attendance.clockOutTime || attendance.clockInTime || new Date(`${attendance.date}T00:00:00`)
+      })),
+      ...leaveRequests.map((request) => ({
+        id: `leave-${request.id}`,
+        type: 'leave',
+        status: request.status,
+        title: `${request.leaveType} leave request`,
+        meta: `${new Date(request.startDate).toLocaleDateString()} to ${new Date(request.endDate).toLocaleDateString()}`,
+        createdAt: request.createdAt
+      })),
+      ...swapRequests.map((request) => ({
+        id: `swap-${request.id}`,
+        type: 'swap',
+        status: request.status,
+        title: request.targetShift ? `Swap request for ${request.targetShift.title || request.targetShift.shiftType}` : 'Swap request',
+        meta: request.targetAccepted === false ? 'Target staff rejected' : request.targetAccepted === true ? 'Target staff accepted' : 'Awaiting response',
+        createdAt: request.createdAt
+      }))
+    ].sort((first, second) => new Date(second.createdAt) - new Date(first.createdAt)).slice(0, 20);
+
+    const completedThisWeek = completions.filter((activity) => {
+      const completedAt = activity.completedAt || activity.createdAt;
+      return completedAt && new Date(completedAt) >= weekStart && activity.status === 'COMPLETED';
+    }).length;
+
+    renderWithFlash(req, res, 'staff/activity', {
       title: 'Activity',
       activePage: 'activity',
-      activities: completions
+      activities: activityFeed,
+      stats: {
+        completedThisWeek,
+        openTasks,
+        pendingRequests: leaveRequests.filter((request) => request.status === 'PENDING').length
+          + swapRequests.filter((request) => request.status === 'PENDING').length,
+        today
+      }
     });
   } catch (error) {
     console.error('Error loading activity:', error);
-    res.render('staff/activity', {
+    renderWithFlash(req, res, 'staff/activity', {
       title: 'Activity',
       activePage: 'activity',
-      activities: []
+      activities: [],
+      stats: {
+        completedThisWeek: 0,
+        openTasks: 0,
+        pendingRequests: 0,
+        today: getToday()
+      }
     });
   }
 });
 
-// GET /staff/settings - placeholder
-router.get('/settings', (req, res) => {
-  res.render('staff/settings', {
-    title: 'Settings',
-    activePage: 'settings'
-  });
+// GET /staff/settings
+router.get('/settings', async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const today = getToday();
+
+    const [user, assignedShiftTypes, nextAssignment, managerContact] = await Promise.all([
+      User.findByPk(userId),
+      getAssignedChecklistShiftTypes(userId, today),
+      ShiftAssignment.findOne({
+        where: { userId },
+        include: [{
+          model: Shift,
+          as: 'Shift',
+          required: true,
+          where: {
+            shiftDate: { [Op.gte]: today },
+            status: { [Op.in]: ['SCHEDULED', 'ACTIVE'] }
+          }
+        }],
+        order: [
+          [{ model: Shift, as: 'Shift' }, 'shiftDate', 'ASC'],
+          [{ model: Shift, as: 'Shift' }, 'scheduledStart', 'ASC']
+        ]
+      }),
+      User.findOne({
+        where: { role: 'MANAGER', isActive: true },
+        attributes: ['fullName', 'email']
+      })
+    ]);
+
+    renderWithFlash(req, res, 'staff/settings', {
+      title: 'Settings',
+      activePage: 'settings',
+      user: user ? user.toJSON() : req.session.user,
+      assignedShiftTypes,
+      nextShift: nextAssignment?.Shift ? nextAssignment.Shift.toJSON() : null,
+      managerContact: managerContact ? managerContact.toJSON() : null
+    });
+  } catch (error) {
+    console.error('Error loading settings:', error);
+    renderWithFlash(req, res, 'staff/settings', {
+      title: 'Settings',
+      activePage: 'settings',
+      user: req.session.user,
+      assignedShiftTypes: [],
+      nextShift: null,
+      managerContact: null
+    });
+  }
 });
 
 // GET /staff/profile - Staff profile page
-router.get('/profile', (req, res) => {
-  res.render('staff/profile', {
-    title: 'Profile',
-    activePage: 'profile'
-  });
+router.get('/profile', async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const today = getToday();
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 6);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const [user, upcomingAssignments, attendanceLogs, recentLeaveRequests, completedThisWeek, openTasks] = await Promise.all([
+      User.findByPk(userId),
+      ShiftAssignment.findAll({
+        where: { userId },
+        include: [{
+          model: Shift,
+          as: 'Shift',
+          required: true,
+          where: {
+            shiftDate: { [Op.gte]: today },
+            status: { [Op.in]: ['SCHEDULED', 'ACTIVE'] }
+          }
+        }],
+        order: [
+          [{ model: Shift, as: 'Shift' }, 'shiftDate', 'ASC'],
+          [{ model: Shift, as: 'Shift' }, 'scheduledStart', 'ASC']
+        ],
+        limit: 3
+      }),
+      StaffAttendance.findAll({
+        where: { userId },
+        order: [['date', 'DESC']],
+        limit: 5
+      }),
+      LeaveRequest.findAll({
+        where: { userId },
+        order: [['createdAt', 'DESC']],
+        limit: 3
+      }),
+      ChecklistCompletion.count({
+        where: {
+          userId,
+          status: 'COMPLETED',
+          completedAt: { [Op.gte]: weekStart }
+        }
+      }),
+      TaskAssignment.count({
+        where: { assignedTo: userId, status: 'OPEN' }
+      })
+    ]);
+
+    renderWithFlash(req, res, 'staff/profile', {
+      title: 'Profile',
+      activePage: 'profile',
+      user: user ? user.toJSON() : req.session.user,
+      stats: {
+        completedThisWeek,
+        openTasks,
+        upcomingShifts: upcomingAssignments.length
+      },
+      upcomingAssignments: upcomingAssignments.map((assignment) => assignment.toJSON()),
+      attendanceLogs: attendanceLogs.map((attendance) => attendance.toJSON()),
+      recentLeaveRequests: recentLeaveRequests.map((request) => request.toJSON())
+    });
+  } catch (error) {
+    console.error('Error loading profile:', error);
+    renderWithFlash(req, res, 'staff/profile', {
+      title: 'Profile',
+      activePage: 'profile',
+      user: req.session.user,
+      stats: {
+        completedThisWeek: 0,
+        openTasks: 0,
+        upcomingShifts: 0
+      },
+      upcomingAssignments: [],
+      attendanceLogs: [],
+      recentLeaveRequests: []
+    });
+  }
 });
 
 // GET /staff/inventory - Staff inventory list (read-only)
@@ -327,20 +553,36 @@ router.get('/inventory', async (req, res) => {
 router.put('/tasks/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const status = normalizeEnum(req.body.status, TASK_STATUSES);
     const userId = req.session.user.id;
 
     const task = await TaskAssignment.findByPk(id);
     if (!task) {
+      if (req.accepts('html')) {
+        return redirectWithFlash(req, res, '/staff/dashboard', { error: 'Task not found.' });
+      }
+
       return res.status(404).json({ error: 'Task not found' });
     }
 
     // Verify the task is assigned to this user
     if (task.assignedTo !== userId) {
+      if (req.accepts('html')) {
+        return redirectWithFlash(req, res, '/staff/dashboard', { error: 'Not authorized to update that task.' });
+      }
+
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    await task.update({ status: status || task.status });
+    if (!status) {
+      if (req.accepts('html')) {
+        return redirectWithFlash(req, res, '/staff/dashboard', { error: 'Invalid task status.' });
+      }
+
+      return res.status(422).json({ error: 'Invalid task status' });
+    }
+
+    await task.update({ status });
 
     // Log activity
     if (status === 'DONE') {
@@ -348,10 +590,340 @@ router.put('/tasks/:id', async (req, res) => {
       await logActivity(userId, ACTIONS.TASK_COMPLETED, 'task', id);
     }
 
+    if (req.accepts('html')) {
+      return redirectWithFlash(req, res, req.get('referer') || '/staff/dashboard', {
+        success: status === 'DONE' ? 'Task marked complete.' : 'Task updated.'
+      });
+    }
+
     res.json({ success: true, task });
   } catch (error) {
     console.error('Error updating task:', error);
+    if (req.accepts('html')) {
+      return redirectWithFlash(req, res, '/staff/dashboard', {
+        error: 'Error updating task.'
+      });
+    }
+
     res.status(500).json({ error: 'Error updating task' });
+  }
+});
+
+// GET /staff/swap-requests - View swap requests
+router.get('/swap-requests', async (req, res) => {
+  let myShifts = [];
+  let allShifts = [];
+  let swapRequests = [];
+  let staffMembers = [];
+
+  try {
+    if (!req.session || !req.session.user || !req.session.user.id) {
+      return res.redirect('/login');
+    }
+    const userId = req.session.user.id;
+
+    // Get shifts assigned to the user
+    myShifts = await ShiftAssignment.findAll({
+      where: { userId: userId },
+      include: [{ model: Shift, as: 'Shift' }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    // Also get all available shifts
+    allShifts = await Shift.findAll({
+      order: [['shiftDate', 'ASC'], ['scheduledStart', 'ASC']],
+      limit: 50
+    });
+
+    // Get all staff members (excluding current user)
+    staffMembers = await User.findAll({
+      where: { id: { [require('sequelize').Op.ne]: userId } },
+      attributes: ['id', 'fullName', 'email'],
+      order: [['fullName', 'ASC']]
+    });
+
+    // Get user's pending swap requests
+    swapRequests = await ShiftSwap.findAll({
+      where: { requesterId: userId },
+      include: [
+        { model: Shift, as: 'targetShift' },
+        { model: Shift, as: 'desiredShift' },
+        { model: User, as: 'targetUser', attributes: ['id', 'fullName'] }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    renderWithFlash(req, res, 'staff/swap-requests', {
+      title: 'Shift Swap Requests',
+      activePage: 'swap-requests',
+      swapRequests: swapRequests,
+      myShifts: myShifts,
+      allShifts: allShifts,
+      staffMembers: staffMembers
+    });
+  } catch (error) {
+    console.error('Error loading swap requests:', error);
+    renderWithFlash(req, res, 'staff/swap-requests', {
+      title: 'Shift Swap Requests',
+      activePage: 'swap-requests',
+      swapRequests: [],
+      myShifts: [],
+      allShifts: [],
+      staffMembers: []
+    });
+  }
+});
+
+// POST /staff/swap-requests - Create swap request
+router.post('/swap-requests', async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const targetShiftId = normalizeInteger(req.body.targetShiftId, { min: 1 });
+    const desiredShiftId = normalizeInteger(req.body.desiredShiftId, { min: 1, allowNull: true });
+    const targetUserId = normalizeInteger(req.body.targetUserId, { min: 1 });
+    const reason = toTrimmedString(req.body.reason, { maxLength: 1000, allowEmpty: true });
+
+    if (Number.isNaN(targetShiftId) || Number.isNaN(targetUserId)) {
+      return redirectWithFlash(req, res, '/staff/swap-requests', {
+        error: 'Select a valid shift and staff member.'
+      });
+    }
+
+    if (targetUserId === userId) {
+      return redirectWithFlash(req, res, '/staff/swap-requests', {
+        error: 'You cannot request a swap with yourself.'
+      });
+    }
+
+    const [requesterAssignment, targetUser, existingPendingRequest] = await Promise.all([
+      ShiftAssignment.findOne({
+        where: { userId, shiftId: targetShiftId }
+      }),
+      User.findOne({
+        where: { id: targetUserId, role: 'STAFF', isActive: true }
+      }),
+      ShiftSwap.findOne({
+        where: {
+          requesterId: userId,
+          targetShiftId,
+          targetUserId,
+          status: 'PENDING'
+        }
+      })
+    ]);
+
+    if (!requesterAssignment) {
+      return redirectWithFlash(req, res, '/staff/swap-requests', {
+        error: 'You can only request swaps for shifts assigned to you.'
+      });
+    }
+
+    if (!targetUser) {
+      return redirectWithFlash(req, res, '/staff/swap-requests', {
+        error: 'Selected staff member is not available for swaps.'
+      });
+    }
+
+    if (existingPendingRequest) {
+      return redirectWithFlash(req, res, '/staff/swap-requests', {
+        error: 'A pending request for that shift and staff member already exists.'
+      });
+    }
+
+    await ShiftSwap.create({
+      requesterId: userId,
+      targetShiftId,
+      desiredShiftId: Number.isNaN(desiredShiftId) ? null : desiredShiftId,
+      targetUserId,
+      reason: reason || null,
+      status: 'PENDING'
+    });
+
+    redirectWithFlash(req, res, '/staff/swap-requests', {
+      success: 'Swap request submitted!'
+    });
+  } catch (error) {
+    console.error('Error creating swap request:', error);
+    redirectWithFlash(req, res, '/staff/swap-requests', {
+      error: 'Error creating swap request'
+    });
+  }
+});
+
+// GET /staff/incoming-swap-requests - View incoming swap requests (where user is target)
+router.get('/incoming-swap-requests', async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+
+    // Get swap requests where current user is the target
+    const incomingRequests = await ShiftSwap.findAll({
+      where: { targetUserId: userId },
+      include: [
+        { model: User, as: 'requester', attributes: ['id', 'fullName', 'email'] },
+        { model: Shift, as: 'targetShift' },
+        { model: Shift, as: 'desiredShift' }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    renderWithFlash(req, res, 'staff/incoming-swap-requests', {
+      title: 'Incoming Swap Requests',
+      activePage: 'incoming-swap-requests',
+      incomingRequests: incomingRequests
+    });
+  } catch (error) {
+    console.error('Error loading incoming swap requests:', error);
+    renderWithFlash(req, res, 'staff/incoming-swap-requests', {
+      title: 'Incoming Swap Requests',
+      activePage: 'incoming-swap-requests',
+      incomingRequests: []
+    });
+  }
+});
+
+// POST /staff/swap-requests/:id/accept - Accept swap request as target staff
+router.post('/swap-requests/:id/accept', async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const { id } = req.params;
+
+    const swapRequest = await ShiftSwap.findOne({
+      where: { id: id, targetUserId: userId, status: 'PENDING' }
+    });
+
+    if (!swapRequest) {
+      return redirectWithFlash(req, res, '/staff/incoming-swap-requests', {
+        error: 'Swap request not found or already processed'
+      });
+    }
+
+    // Update to mark as accepted by target
+    swapRequest.targetAccepted = true;
+    await swapRequest.save();
+
+    redirectWithFlash(req, res, '/staff/incoming-swap-requests', {
+      success: 'You have accepted the swap request!'
+    });
+  } catch (error) {
+    console.error('Error accepting swap request:', error);
+    redirectWithFlash(req, res, '/staff/incoming-swap-requests', {
+      error: 'Error processing request'
+    });
+  }
+});
+
+// POST /staff/swap-requests/:id/reject - Reject swap request as target staff
+router.post('/swap-requests/:id/reject', async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const { id } = req.params;
+    const reason = toTrimmedString(req.body.reason, { maxLength: 1000, allowEmpty: true });
+
+    const swapRequest = await ShiftSwap.findOne({
+      where: { id: id, targetUserId: userId, status: 'PENDING' }
+    });
+
+    if (!swapRequest) {
+      return redirectWithFlash(req, res, '/staff/incoming-swap-requests', {
+        error: 'Swap request not found or already processed'
+      });
+    }
+
+    // Update to mark as rejected by target
+    swapRequest.targetAccepted = false;
+    swapRequest.targetRejectionReason = reason || 'Rejected by staff';
+    await swapRequest.save();
+
+    redirectWithFlash(req, res, '/staff/incoming-swap-requests', {
+      success: 'You have rejected the swap request'
+    });
+  } catch (error) {
+    console.error('Error rejecting swap request:', error);
+    redirectWithFlash(req, res, '/staff/incoming-swap-requests', {
+      error: 'Error processing request'
+    });
+  }
+});
+
+// GET /staff/leave-requests - View leave requests
+router.get('/leave-requests', async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+
+    const leaveRequests = await LeaveRequest.findAll({
+      where: { userId: userId },
+      include: [{ model: User, as: 'approver' }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    renderWithFlash(req, res, 'staff/leave-requests', {
+      title: 'Leave Requests',
+      activePage: 'leave-requests',
+      leaveRequests
+    });
+  } catch (error) {
+    console.error('Error loading leave requests:', error);
+    renderWithFlash(req, res, 'staff/leave-requests', {
+      title: 'Leave Requests',
+      activePage: 'leave-requests',
+      leaveRequests: []
+    });
+  }
+});
+
+// POST /staff/leave-requests - Create leave request
+router.post('/leave-requests', async (req, res) => {
+  try {
+    const userId = req.session.user.id;
+    const leaveType = normalizeEnum(req.body.leaveType, LEAVE_TYPES);
+    const startDate = normalizeDate(req.body.startDate);
+    const endDate = normalizeDate(req.body.endDate);
+    const reason = toTrimmedString(req.body.reason, { maxLength: 1000, allowEmpty: true });
+
+    if (!leaveType || !startDate || !endDate) {
+      return redirectWithFlash(req, res, '/staff/leave-requests', {
+        error: 'Leave type, start date, and end date are required.'
+      });
+    }
+
+    if (startDate > endDate) {
+      return redirectWithFlash(req, res, '/staff/leave-requests', {
+        error: 'Leave end date must be on or after the start date.'
+      });
+    }
+
+    const existingOverlap = await LeaveRequest.findOne({
+      where: {
+        userId,
+        status: { [Op.in]: ['PENDING', 'APPROVED'] },
+        startDate: { [Op.lte]: endDate },
+        endDate: { [Op.gte]: startDate }
+      }
+    });
+
+    if (existingOverlap) {
+      return redirectWithFlash(req, res, '/staff/leave-requests', {
+        error: 'You already have a pending or approved leave request in that date range.'
+      });
+    }
+
+    await LeaveRequest.create({
+      userId,
+      leaveType,
+      startDate,
+      endDate,
+      reason: reason || null,
+      status: 'PENDING'
+    });
+
+    redirectWithFlash(req, res, '/staff/leave-requests', {
+      success: 'Leave request submitted!'
+    });
+  } catch (error) {
+    console.error('Error creating leave request:', error);
+    redirectWithFlash(req, res, '/staff/leave-requests', {
+      error: 'Error creating leave request'
+    });
   }
 });
 

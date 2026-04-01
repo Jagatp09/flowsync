@@ -26,6 +26,18 @@
     </div>
   </header>
   <div class="p-8 space-y-8">
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-3">
+        <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">check_circle</span>
+        <p class="text-sm text-emerald-700 dark:text-emerald-300"><%= success %></p>
+      </div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
+        <span class="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+        <p class="text-sm text-red-700 dark:text-red-300"><%= error %></p>
+      </div>
+    <% } %>
     <!-- Dashboard Header & Filters -->
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
@@ -76,12 +88,12 @@
       </div>
       <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div class="flex justify-between items-start mb-4">
-          <div class="p-2 bg-purple-50 dark:bg-purple-900/30 rounded-lg text-purple-600">
-            <span class="material-symbols-outlined">timer</span>
+          <div class="p-2 bg-violet-50 dark:bg-violet-900/30 rounded-lg text-violet-600">
+            <span class="material-symbols-outlined">approval</span>
           </div>
         </div>
-        <p class="text-slate-500 text-sm font-medium">Avg Task Time</p>
-        <h3 class="text-3xl font-bold mt-1"><%= stats.avgTaskTime %>m</h3>
+        <p class="text-slate-500 text-sm font-medium">Pending Approvals</p>
+        <h3 class="text-3xl font-bold mt-1"><%= stats.pendingApprovals %></h3>
       </div>
       <div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div class="flex justify-between items-start mb-4">
@@ -208,7 +220,11 @@
     <% if (missingTasks && missingTasks.length > 0) { %>
       <section class="flex flex-col gap-4">
         <div class="flex items-center justify-between">
-          <h3 class="text-lg font-bold text-slate-900">Missing Tasks</h3>
+          <div>
+            <h3 class="text-lg font-bold text-slate-900">Missing Tasks</h3>
+            <% const displayDate = selectedDate ? new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today'; %>
+            <span class="text-xs text-slate-500"><%= displayDate %></span>
+          </div>
           <span class="text-sm text-slate-500">Tasks not yet completed</span>
         </div>
         <div class="bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-800 overflow-hidden shadow-sm">

@@ -17,7 +17,11 @@ const InventoryItem = sequelize.define('InventoryItem', {
   },
   quantityOnHand: {
     type: DataTypes.INTEGER,
-    defaultValue: 0
+    allowNull: false,
+    defaultValue: 0,
+    validate: {
+      min: 0
+    }
   },
   unit: {
     type: DataTypes.STRING,
@@ -25,11 +29,23 @@ const InventoryItem = sequelize.define('InventoryItem', {
   },
   reorderLevel: {
     type: DataTypes.INTEGER,
-    defaultValue: 0
+    allowNull: false,
+    defaultValue: 0,
+    validate: {
+      min: 0
+    }
   }
 }, {
   tableName: 'inventory_items',
-  timestamps: true
+  timestamps: true,
+  indexes: [
+    {
+      fields: ['category']
+    },
+    {
+      fields: ['name']
+    }
+  ]
 });
 
 module.exports = InventoryItem;

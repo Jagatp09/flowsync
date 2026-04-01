@@ -15,42 +15,119 @@
       </div>
     </header>
 
-    <div class="p-8 max-w-2xl mx-auto space-y-8">
-      <!-- Profile Card -->
+    <div class="p-8 max-w-5xl mx-auto space-y-6">
       <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
-        <div class="flex items-center gap-6">
+        <div class="flex flex-col md:flex-row md:items-center gap-6">
           <div class="size-20 rounded-full bg-primary/10 flex items-center justify-center text-primary">
             <span class="material-symbols-outlined text-4xl">person</span>
           </div>
-          <div>
+          <div class="flex-1">
             <h3 class="text-2xl font-bold text-slate-900 dark:text-white"><%= user ? user.fullName : 'Staff Member' %></h3>
             <p class="text-slate-500"><%= user ? user.email : 'staff@flowsync.com' %></p>
-            <span class="inline-block mt-2 px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">Staff</span>
+            <div class="flex flex-wrap gap-2 mt-3">
+              <span class="inline-flex px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">Staff</span>
+              <% if (user && user.isActive !== false) { %>
+                <span class="inline-flex px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-bold rounded-full">Active</span>
+              <% } %>
+            </div>
+          </div>
+          <a href="/staff/settings" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800">
+            <span class="material-symbols-outlined text-[18px]">settings</span>
+            Account Settings
+          </a>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+          <p class="text-sm text-slate-500">Completed This Week</p>
+          <p class="text-3xl font-black mt-2 text-emerald-600"><%= stats.completedThisWeek %></p>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+          <p class="text-sm text-slate-500">Open Tasks</p>
+          <p class="text-3xl font-black mt-2 text-primary"><%= stats.openTasks %></p>
+        </div>
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6">
+          <p class="text-sm text-slate-500">Upcoming Shifts</p>
+          <p class="text-3xl font-black mt-2 text-amber-500"><%= stats.upcomingShifts %></p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div class="p-6 border-b border-slate-200 dark:border-slate-800">
+            <h4 class="text-lg font-bold text-slate-900 dark:text-white">Upcoming Shifts</h4>
+          </div>
+          <div class="divide-y divide-slate-100 dark:divide-slate-800">
+            <% if (upcomingAssignments && upcomingAssignments.length > 0) { %>
+              <% upcomingAssignments.forEach(function(assignment) { %>
+                <div class="p-5">
+                  <p class="font-semibold text-slate-900 dark:text-white"><%= assignment.Shift ? (assignment.Shift.title || assignment.Shift.shiftType) : 'Shift' %></p>
+                  <p class="text-sm text-slate-500 mt-1">
+                    <% if (assignment.Shift) { %>
+                      <%= new Date(assignment.Shift.shiftDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) %>
+                      <% if (assignment.Shift.scheduledStart && assignment.Shift.scheduledEnd) { %>
+                        • <%= assignment.Shift.scheduledStart %> - <%= assignment.Shift.scheduledEnd %>
+                      <% } %>
+                    <% } %>
+                  </p>
+                </div>
+              <% }); %>
+            <% } else { %>
+              <div class="p-6 text-sm text-slate-500">No upcoming shifts scheduled.</div>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <div class="p-6 border-b border-slate-200 dark:border-slate-800">
+            <h4 class="text-lg font-bold text-slate-900 dark:text-white">Recent Attendance</h4>
+          </div>
+          <div class="divide-y divide-slate-100 dark:divide-slate-800">
+            <% if (attendanceLogs && attendanceLogs.length > 0) { %>
+              <% attendanceLogs.forEach(function(attendance) { %>
+                <div class="p-5 flex items-center justify-between">
+                  <div>
+                    <p class="font-medium text-slate-900 dark:text-white"><%= new Date(attendance.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></p>
+                    <p class="text-sm text-slate-500 mt-1">
+                      <% if (attendance.clockInTime) { %>Clock in: <%= new Date(attendance.clockInTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %><% } else { %>No clock-in recorded<% } %>
+                      <% if (attendance.clockOutTime) { %> • Clock out: <%= new Date(attendance.clockOutTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) %><% } %>
+                    </p>
+                  </div>
+                  <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"><%= attendance.status %></span>
+                </div>
+              <% }); %>
+            <% } else { %>
+              <div class="p-6 text-sm text-slate-500">No attendance history available yet.</div>
+            <% } %>
           </div>
         </div>
       </div>
 
-      <!-- Account Settings -->
-      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-        <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Account Settings</h4>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
-            <input type="text" value="<%= user ? user.fullName : '' %>" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white" disabled/>
-            <p class="text-xs text-slate-500 mt-1">Contact your manager to change your name.</p>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
-            <input type="email" value="<%= user ? user.email : '' %>" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white" disabled/>
-            <p class="text-xs text-slate-500 mt-1">Contact your manager to change your email.</p>
-          </div>
+      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div class="p-6 border-b border-slate-200 dark:border-slate-800">
+          <h4 class="text-lg font-bold text-slate-900 dark:text-white">Recent Leave Requests</h4>
         </div>
-      </div>
-
-      <!-- App Info -->
-      <div class="text-center text-sm text-slate-500">
-        <p>FlowSync v1.0.0</p>
-        <p class="mt-1">Built with Express + Sequelize + PostgreSQL</p>
+        <div class="divide-y divide-slate-100 dark:divide-slate-800">
+          <% if (recentLeaveRequests && recentLeaveRequests.length > 0) { %>
+            <% recentLeaveRequests.forEach(function(request) { %>
+              <div class="p-5 flex items-center justify-between gap-4">
+                <div>
+                  <p class="font-medium text-slate-900 dark:text-white"><%= request.leaveType %> leave</p>
+                  <p class="text-sm text-slate-500 mt-1">
+                    <%= new Date(request.startDate).toLocaleDateString() %> to <%= new Date(request.endDate).toLocaleDateString() %>
+                  </p>
+                </div>
+                <span class="px-2.5 py-1 text-xs font-bold rounded-full
+                  <% if (request.status === 'APPROVED') { %>bg-emerald-100 text-emerald-700<% } %>
+                  <% if (request.status === 'PENDING') { %>bg-amber-100 text-amber-700<% } %>
+                  <% if (request.status === 'REJECTED') { %>bg-red-100 text-red-700<% } %>"><%= request.status %></span>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <div class="p-6 text-sm text-slate-500">No leave requests submitted yet.</div>
+          <% } %>
+        </div>
       </div>
     </div>
   </main>

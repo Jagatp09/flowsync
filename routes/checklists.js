@@ -1,99 +1,67 @@
 const express = require('express');
 const router = express.Router();
-const { Checklist, ChecklistItem, ChecklistCompletion, User, ShiftReport } = require('../models');
+const { Checklist, ChecklistItem, ChecklistCompletion, ShiftReport } = require('../models');
+const { requireAuth, requireStaff } = require('../utils/middleware');
+const { normalizeEnum, toTrimmedString } = require('../utils/validation');
+const {
+  canAccessChecklistShift,
+  getChecklistProgressForUser,
+  CHECKLIST_SHIFT_TO_SHIFT
+} = require('../utils/shiftAccess');
 
-// Middleware to check authentication
-const requireAuth = (req, res, next) => {
-  if (!req.session.user) {
-    return res.redirect('/login');
-  }
-  next();
-};
+const CHECKLIST_STATUSES = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'PARTIAL'];
 
 // GET /checklists/daily - Staff daily checklist page
-router.get('/daily', requireAuth, async (req, res) => {
+router.get('/daily', requireAuth, requireStaff, async (req, res) => {
   try {
     const userId = req.session.user.id;
     const today = new Date().toISOString().split('T')[0];
+    const { checklistData, stats } = await getChecklistProgressForUser(userId, today);
 
-    // Get all active checklists with their items
-    const checklists = await Checklist.findAll({
-      where: { isActive: true },
-      include: [{
-        model: ChecklistItem,
-        as: 'items',
-        order: [['sortOrder', 'ASC']]
-      }],
-      order: [['shiftType', 'ASC']]
-    });
-
-    // Get completions for today for this user
-    const completions = await ChecklistCompletion.findAll({
-      where: {
-        userId: userId,
-        date: today
-      }
-    });
-
-    // Create a map of itemId -> completion
-    const completionMap = {};
-    completions.forEach(c => {
-      completionMap[c.checklistItemId] = c;
-    });
-
-    // Transform data for view
-    const checklistData = checklists.map(checklist => ({
-      id: checklist.id,
-      title: checklist.title,
-      shiftType: checklist.shiftType,
-      items: checklist.items.map(item => ({
-        id: item.id,
-        text: item.text,
-        category: item.category,
-        completion: completionMap[item.id] || null
-      }))
-    }));
-
-    // Calculate stats
-    let totalTasks = 0;
-    let completedTasks = 0;
-    checklistData.forEach(cl => {
-      cl.items.forEach(item => {
-        totalTasks++;
-        if (item.completion && item.completion.status === 'COMPLETED') {
-          completedTasks++;
-        }
-      });
-    });
-
-    const stats = {
-      total: totalTasks,
-      completed: completedTasks,
-      remaining: totalTasks - completedTasks,
-      percentage: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
-    };
+    const success = req.session.success || null;
+    const error = req.session.error || null;
 
     res.render('staff/checklist', {
       title: 'My Tasks',
       activePage: 'tasks',
       checklists: checklistData,
-      stats: stats
+      stats,
+      success,
+      error
     });
+
+    if (req.session.success) delete req.session.success;
+    if (req.session.error) delete req.session.error;
   } catch (error) {
     console.error('Error loading daily checklist:', error);
-    res.status(500).send('Error loading checklist');
+    req.session.error = 'Error loading checklist';
+    res.redirect('/staff/dashboard');
   }
 });
 
 // POST /checklists/items/:itemId/complete - Mark task as complete
-router.post('/items/:itemId/complete', requireAuth, async (req, res) => {
+router.post('/items/:itemId/complete', requireAuth, requireStaff, async (req, res) => {
   try {
     const userId = req.session.user.id;
     const itemId = req.params.itemId;
-    const { notes, status } = req.body;
+    const notes = toTrimmedString(req.body.notes, { maxLength: 1000, allowEmpty: true });
+    const status = normalizeEnum(req.body.status || 'COMPLETED', CHECKLIST_STATUSES);
     const today = new Date().toISOString().split('T')[0];
+    const checklistItem = await ChecklistItem.findByPk(itemId, {
+      include: [{ model: Checklist, attributes: ['shiftType'] }]
+    });
 
-    // Check if completion already exists
+    if (!checklistItem || !status) {
+      req.session.error = 'Invalid checklist update.';
+      return res.redirect('/checklists/daily');
+    }
+
+    const isAuthorized = await canAccessChecklistShift(userId, checklistItem.Checklist.shiftType, today);
+    if (!isAuthorized) {
+      req.session.error = 'You are not assigned to complete tasks for this shift.';
+      return res.redirect('/checklists/daily');
+    }
+
     let completion = await ChecklistCompletion.findOne({
       where: {
         checklistItemId: itemId,
@@ -103,20 +71,20 @@ router.post('/items/:itemId/complete', requireAuth, async (req, res) => {
     });
 
     if (completion) {
-      // Update existing completion
-      completion.status = status || 'COMPLETED';
+      completion.status = status;
       completion.notes = notes || null;
       if (status === 'COMPLETED') {
         completion.completedAt = new Date();
+      } else {
+        completion.completedAt = null;
       }
       await completion.save();
     } else {
-      // Create new completion
       completion = await ChecklistCompletion.create({
         checklistItemId: itemId,
         userId: userId,
         date: today,
-        status: status || 'COMPLETED',
+        status,
         notes: notes || null,
         completedAt: status === 'COMPLETED' ? new Date() : null
       });
@@ -125,24 +93,37 @@ router.post('/items/:itemId/complete', requireAuth, async (req, res) => {
     // Log activity
     if (status === 'COMPLETED') {
       const { logActivity, ACTIONS } = require('../utils/activityLogger');
-      const checklistItem = await ChecklistItem.findByPk(itemId);
       await logActivity(userId, ACTIONS.CHECKLIST_ITEM_COMPLETED, 'checklist_item', itemId, { itemText: checklistItem ? checklistItem.text : 'Unknown' });
     }
 
-    // Redirect back to daily checklist
     res.redirect('/checklists/daily');
   } catch (error) {
     console.error('Error completing task:', error);
-    res.status(500).send('Error completing task');
+    req.session.error = 'Error completing task';
+    res.redirect('/checklists/daily');
   }
 });
 
 // POST /checklists/items/:itemId/undo - Undo task completion
-router.post('/items/:itemId/undo', requireAuth, async (req, res) => {
+router.post('/items/:itemId/undo', requireAuth, requireStaff, async (req, res) => {
   try {
     const userId = req.session.user.id;
     const itemId = req.params.itemId;
     const today = new Date().toISOString().split('T')[0];
+    const checklistItem = await ChecklistItem.findByPk(itemId, {
+      include: [{ model: Checklist, attributes: ['shiftType'] }]
+    });
+
+    if (!checklistItem) {
+      req.session.error = 'Checklist item not found.';
+      return res.redirect('/checklists/daily');
+    }
+
+    const isAuthorized = await canAccessChecklistShift(userId, checklistItem.Checklist.shiftType, today);
+    if (!isAuthorized) {
+      req.session.error = 'You are not assigned to modify tasks for this shift.';
+      return res.redirect('/checklists/daily');
+    }
 
     const completion = await ChecklistCompletion.findOne({
       where: {
@@ -161,55 +142,18 @@ router.post('/items/:itemId/undo', requireAuth, async (req, res) => {
     res.redirect('/checklists/daily');
   } catch (error) {
     console.error('Error undoing task:', error);
-    res.status(500).send('Error undoing task');
+    req.session.error = 'Error undoing task';
+    res.redirect('/checklists/daily');
   }
 });
 
 // GET /api/checklists/stats - Get stats for dashboard (JSON)
-router.get('/api/stats', requireAuth, async (req, res) => {
+router.get('/api/stats', requireAuth, requireStaff, async (req, res) => {
   try {
     const userId = req.session.user.id;
     const today = new Date().toISOString().split('T')[0];
-
-    // Get all checklists with items
-    const checklists = await Checklist.findAll({
-      where: { isActive: true },
-      include: [{
-        model: ChecklistItem,
-        as: 'items'
-      }]
-    });
-
-    // Get user's completions for today
-    const completions = await ChecklistCompletion.findAll({
-      where: {
-        userId: userId,
-        date: today
-      }
-    });
-
-    const completionMap = {};
-    completions.forEach(c => {
-      completionMap[c.checklistItemId] = c;
-    });
-
-    let total = 0;
-    let completed = 0;
-    checklists.forEach(cl => {
-      cl.items.forEach(item => {
-        total++;
-        if (completionMap[item.id] && completionMap[item.id].status === 'COMPLETED') {
-          completed++;
-        }
-      });
-    });
-
-    res.json({
-      total,
-      completed,
-      remaining: total - completed,
-      percentage: total > 0 ? Math.round((completed / total) * 100) : 0
-    });
+    const { stats } = await getChecklistProgressForUser(userId, today);
+    res.json(stats);
   } catch (error) {
     console.error('Error getting stats:', error);
     res.status(500).json({ error: 'Error getting stats' });
@@ -217,14 +161,22 @@ router.get('/api/stats', requireAuth, async (req, res) => {
 });
 
 // POST /checklists/shift/:shiftType/items - Add custom task
-router.post('/shift/:shiftType/items', requireAuth, async (req, res) => {
+router.post('/shift/:shiftType/items', requireAuth, requireStaff, async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const { shiftType } = req.params;
-    const { text, category } = req.body;
+    const shiftType = normalizeEnum(req.params.shiftType, Object.keys(CHECKLIST_SHIFT_TO_SHIFT));
+    const text = toTrimmedString(req.body.text, { maxLength: 255 });
+    const category = toTrimmedString(req.body.category, { maxLength: 80, allowEmpty: true });
+    const today = new Date().toISOString().split('T')[0];
 
-    if (!text || !text.trim()) {
+    if (!shiftType || !text) {
       req.session.error = 'Task text is required';
+      return res.redirect('/checklists/daily');
+    }
+
+    const isAuthorized = await canAccessChecklistShift(userId, shiftType, today);
+    if (!isAuthorized) {
+      req.session.error = 'You are not assigned to add tasks for this shift.';
       return res.redirect('/checklists/daily');
     }
 
@@ -251,7 +203,7 @@ router.post('/shift/:shiftType/items', requireAuth, async (req, res) => {
     // Create new checklist item
     const newItem = await ChecklistItem.create({
       checklistId: checklist.id,
-      text: text.trim(),
+      text,
       category: category || 'Custom',
       sortOrder: sortOrder,
       isCustom: true // Mark as custom task
@@ -261,7 +213,7 @@ router.post('/shift/:shiftType/items', requireAuth, async (req, res) => {
     await ChecklistCompletion.create({
       checklistItemId: newItem.id,
       userId: userId,
-      date: new Date().toISOString().split('T')[0],
+      date: today,
       status: 'PENDING'
     });
 
@@ -275,12 +227,24 @@ router.post('/shift/:shiftType/items', requireAuth, async (req, res) => {
 });
 
 // POST /checklists/shift/:shiftType/submit - Submit shift report
-router.post('/shift/:shiftType/submit', requireAuth, async (req, res) => {
+router.post('/shift/:shiftType/submit', requireAuth, requireStaff, async (req, res) => {
   try {
     const userId = req.session.user.id;
-    const { shiftType } = req.params;
-    const { summary, issues } = req.body;
+    const shiftType = normalizeEnum(req.params.shiftType, Object.keys(CHECKLIST_SHIFT_TO_SHIFT));
+    const summary = toTrimmedString(req.body.summary, { maxLength: 2000, allowEmpty: true });
+    const issues = toTrimmedString(req.body.issues, { maxLength: 2000, allowEmpty: true });
     const today = new Date().toISOString().split('T')[0];
+
+    if (!shiftType) {
+      req.session.error = 'Invalid shift type.';
+      return res.redirect('/checklists/daily');
+    }
+
+    const isAuthorized = await canAccessChecklistShift(userId, shiftType, today);
+    if (!isAuthorized) {
+      req.session.error = 'You are not assigned to submit a report for this shift.';
+      return res.redirect('/checklists/daily');
+    }
 
     // Check if shift already submitted
     const existingReport = await ShiftReport.findOne({

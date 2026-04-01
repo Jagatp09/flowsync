@@ -33,6 +33,14 @@
       <span class="material-symbols-outlined text-[20px]">schedule</span>
       <span class="text-sm font-medium">Shifts</span>
     </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg <%= activePage === 'swap-requests' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-primary/5' %> transition-colors" href="/manager/swap-requests">
+      <span class="material-symbols-outlined text-[20px]">swap_horiz</span>
+      <span class="text-sm font-medium">Swap Requests</span>
+    </a>
+    <a class="flex items-center gap-3 px-4 py-3 rounded-lg <%= activePage === 'leave-requests' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-primary/5' %> transition-colors" href="/manager/leave-requests">
+      <span class="material-symbols-outlined text-[20px]">event_available</span>
+      <span class="text-sm font-medium">Leave Requests</span>
+    </a>
     <a class="flex items-center gap-3 px-4 py-3 rounded-lg <%= activePage === 'inventory' ? 'bg-primary text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-primary/5' %> transition-colors" href="/manager/inventory">
       <span class="material-symbols-outlined text-[20px]">inventory_2</span>
       <span class="text-sm font-medium">Inventory</span>
@@ -48,6 +56,7 @@
         <p class="text-xs text-slate-500 truncate"><%= user && user.role === 'MANAGER' ? 'Manager' : 'Staff' %></p>
       </div>
       <form action="/logout" method="POST" class="inline">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"/>
         <button type="submit" class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded" title="Logout">
           <span class="material-symbols-outlined text-slate-400 text-[18px]">logout</span>
         </button>

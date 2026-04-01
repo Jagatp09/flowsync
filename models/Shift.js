@@ -7,6 +7,10 @@ const Shift = sequelize.define('Shift', {
     primaryKey: true,
     autoIncrement: true
   },
+  title: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   shiftType: {
     type: DataTypes.ENUM('OPENING', 'MID_SHIFT', 'CLOSING'),
     allowNull: false
@@ -14,6 +18,18 @@ const Shift = sequelize.define('Shift', {
   shiftDate: {
     type: DataTypes.DATEONLY,
     allowNull: false
+  },
+  scheduledStart: {
+    type: DataTypes.TIME,
+    allowNull: true
+  },
+  scheduledEnd: {
+    type: DataTypes.TIME,
+    allowNull: true
+  },
+  priority: {
+    type: DataTypes.ENUM('LOW', 'MEDIUM', 'HIGH'),
+    defaultValue: 'MEDIUM'
   },
   status: {
     type: DataTypes.ENUM('SCHEDULED', 'ACTIVE', 'CLOSED'),
@@ -49,7 +65,15 @@ const Shift = sequelize.define('Shift', {
   }
 }, {
   tableName: 'shifts',
-  timestamps: true
+  timestamps: true,
+  indexes: [
+    {
+      fields: ['shiftDate', 'status']
+    },
+    {
+      fields: ['managerId', 'shiftDate']
+    }
+  ]
 });
 
 module.exports = Shift;

@@ -17,9 +17,25 @@
       <span class="material-symbols-outlined">assignment</span>
       My Tasks
     </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg <%= activePage === 'swap-requests' ? 'bg-primary/10 text-primary font-semibold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors' %>" href="/staff/swap-requests">
+      <span class="material-symbols-outlined">swap_horiz</span>
+      My Swap Requests
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg <%= activePage === 'incoming-swap-requests' ? 'bg-primary/10 text-primary font-semibold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors' %>" href="/staff/incoming-swap-requests">
+      <span class="material-symbols-outlined">swap_horizontal_circle</span>
+      Incoming Swap Requests
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg <%= activePage === 'leave-requests' ? 'bg-primary/10 text-primary font-semibold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors' %>" href="/staff/leave-requests">
+      <span class="material-symbols-outlined">event_available</span>
+      Leave Requests
+    </a>
     <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg <%= activePage === 'profile' ? 'bg-primary/10 text-primary font-semibold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors' %>" href="/staff/profile">
       <span class="material-symbols-outlined">person</span>
       Profile
+    </a>
+    <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg <%= activePage === 'settings' ? 'bg-primary/10 text-primary font-semibold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors' %>" href="/staff/settings">
+      <span class="material-symbols-outlined">settings</span>
+      Settings
     </a>
   </nav>
   <div class="p-4 border-t border-slate-200 dark:border-slate-800">
@@ -32,6 +48,7 @@
         <p class="text-xs text-slate-500 truncate">Staff Member</p>
       </div>
       <form action="/logout" method="POST" class="inline">
+        <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"/>
         <button type="submit" class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded" title="Logout">
           <span class="material-symbols-outlined text-slate-400">logout</span>
         </button>

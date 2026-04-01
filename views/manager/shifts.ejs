@@ -16,6 +16,16 @@
     </div>
   </header>
   <div class="p-8 space-y-8">
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+        <%= success %>
+      </div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <%= error %>
+      </div>
+    <% } %>
     <!-- Header Section -->
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
@@ -57,7 +67,10 @@
           <thead class="bg-slate-50 dark:bg-slate-800 text-slate-500 text-xs uppercase tracking-wider">
             <tr>
               <th class="px-6 py-4 font-bold">Date</th>
+              <th class="px-6 py-4 font-bold">Title</th>
               <th class="px-6 py-4 font-bold">Shift Type</th>
+              <th class="px-6 py-4 font-bold">Scheduled Time</th>
+              <th class="px-6 py-4 font-bold">Priority</th>
               <th class="px-6 py-4 font-bold">Status</th>
               <th class="px-6 py-4 font-bold">Started</th>
               <th class="px-6 py-4 font-bold">Closed</th>
@@ -72,6 +85,9 @@
                   <td class="px-6 py-4 text-sm font-medium">
                     <%= new Date(shift.shiftDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
                   </td>
+                  <td class="px-6 py-4 text-sm font-medium text-slate-900 dark:text-white">
+                    <%= shift.title || '-' %>
+                  </td>
                   <td class="px-6 py-4 text-sm">
                     <% if (shift.shiftType === 'OPENING') { %>
                       <span class="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 rounded text-xs font-bold">Opening</span>
@@ -79,6 +95,22 @@
                       <span class="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-300 rounded text-xs font-bold">Mid Shift</span>
                     <% } else if (shift.shiftType === 'CLOSING') { %>
                       <span class="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 rounded text-xs font-bold">Closing</span>
+                    <% } %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-slate-500">
+                    <% if (shift.scheduledStart || shift.scheduledEnd) { %>
+                      <%= shift.scheduledStart || '' %> - <%= shift.scheduledEnd || '' %>
+                    <% } else { %>
+                      -
+                    <% } %>
+                  </td>
+                  <td class="px-6 py-4">
+                    <% if (shift.priority === 'HIGH') { %>
+                      <span class="px-2 py-1 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 rounded text-xs font-bold">High</span>
+                    <% } else if (shift.priority === 'MEDIUM') { %>
+                      <span class="px-2 py-1 bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-300 rounded text-xs font-bold">Medium</span>
+                    <% } else if (shift.priority === 'LOW') { %>
+                      <span class="px-2 py-1 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-300 rounded text-xs font-bold">Low</span>
                     <% } %>
                   </td>
                   <td class="px-6 py-4">
@@ -120,10 +152,12 @@
                     <div class="flex items-center justify-end gap-2">
                       <% if (shift.status === 'PLANNED' || shift.status === 'SCHEDULED') { %>
                         <form action="/manager/shifts/<%= shift.id %>/start?_method=POST" method="POST" class="inline">
+                          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"/>
                           <button type="submit" class="px-3 py-1 text-xs font-bold bg-emerald-500 text-white rounded-lg hover:bg-emerald-600">Start</button>
                         </form>
                       <% } else if (shift.status === 'ACTIVE') { %>
                         <form action="/manager/shifts/<%= shift.id %>/close?_method=POST" method="POST" class="inline">
+                          <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>"/>
                           <button type="submit" class="px-3 py-1 text-xs font-bold bg-amber-500 text-white rounded-lg hover:bg-amber-600">Close</button>
                         </form>
                       <% } %>
@@ -136,7 +170,7 @@
               <% }); %>
             <% } else { %>
               <tr>
-                <td colspan="7" class="px-6 py-8 text-center text-slate-500">
+                <td colspan="10" class="px-6 py-8 text-center text-slate-500">
                   No shifts found. Create a new shift to get started.
                 </td>
               </tr>

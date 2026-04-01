@@ -15,62 +15,85 @@
       </div>
     </header>
 
-    <div class="p-8 max-w-2xl mx-auto">
-      <!-- Page Header -->
-      <div class="mb-8">
+    <div class="p-8 max-w-4xl mx-auto space-y-6">
+      <div>
         <h1 class="text-3xl font-black text-slate-900 dark:text-white">Settings</h1>
-        <p class="text-slate-500 mt-1">Manage your account preferences</p>
+        <p class="text-slate-500 mt-1">Account controls, shift access, and support details for your current workspace.</p>
       </div>
 
-      <!-- Account Settings -->
-      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm mb-6">
-        <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Account Settings</h4>
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Full Name</label>
-            <input type="text" value="<%= user ? user.fullName : '' %>" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white" disabled/>
-            <p class="text-xs text-slate-500 mt-1">Contact your manager to change your name.</p>
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+          <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Account</h4>
+          <div class="space-y-4">
+            <div>
+              <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Full Name</p>
+              <p class="mt-1 text-slate-900 dark:text-white"><%= user ? user.fullName : '' %></p>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Email Address</p>
+              <p class="mt-1 text-slate-900 dark:text-white"><%= user ? user.email : '' %></p>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Role</p>
+              <p class="mt-1 text-slate-900 dark:text-white">Staff</p>
+            </div>
+            <p class="text-xs text-slate-500">Profile details are managed centrally so staff records stay consistent across scheduling, checklists, and reports.</p>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email Address</label>
-            <input type="email" value="<%= user ? user.email : '' %>" class="w-full px-4 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white" disabled/>
-            <p class="text-xs text-slate-500 mt-1">Contact your manager to change your email.</p>
+        </div>
+
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+          <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Shift Access</h4>
+          <div class="space-y-4">
+            <div>
+              <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Checklist Access Today</p>
+              <div class="flex flex-wrap gap-2 mt-2">
+                <% if (assignedShiftTypes && assignedShiftTypes.length > 0) { %>
+                  <% assignedShiftTypes.forEach(function(shiftType) { %>
+                    <span class="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full"><%= shiftType %></span>
+                  <% }); %>
+                <% } else { %>
+                  <span class="text-sm text-slate-500">No shift-specific checklist access right now.</span>
+                <% } %>
+              </div>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Next Scheduled Shift</p>
+              <% if (nextShift) { %>
+                <p class="mt-1 text-slate-900 dark:text-white"><%= nextShift.title || nextShift.shiftType %></p>
+                <p class="text-sm text-slate-500">
+                  <%= new Date(nextShift.shiftDate).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }) %>
+                  <% if (nextShift.scheduledStart && nextShift.scheduledEnd) { %>
+                    • <%= nextShift.scheduledStart %> - <%= nextShift.scheduledEnd %>
+                  <% } %>
+                </p>
+              <% } else { %>
+                <p class="mt-1 text-sm text-slate-500">No upcoming shift is currently assigned.</p>
+              <% } %>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Preferences -->
-      <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm mb-6">
-        <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Preferences</h4>
-        <div class="space-y-4">
-          <div class="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-800">
-            <div>
-              <p class="font-medium text-slate-900 dark:text-white">Email Notifications</p>
-              <p class="text-sm text-slate-500">Receive task reminders via email</p>
-            </div>
-            <span class="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold rounded-full">Coming Soon</span>
-          </div>
-          <div class="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-800">
-            <div>
-              <p class="font-medium text-slate-900 dark:text-white">Push Notifications</p>
-              <p class="text-sm text-slate-500">Receive push notifications on your device</p>
-            </div>
-            <span class="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold rounded-full">Coming Soon</span>
-          </div>
-          <div class="flex items-center justify-between py-3">
-            <div>
-              <p class="font-medium text-slate-900 dark:text-white">Dark Mode</p>
-              <p class="text-sm text-slate-500">Use dark theme</p>
-            </div>
-            <span class="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs font-bold rounded-full">Coming Soon</span>
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+          <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Security</h4>
+          <div class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+            <p>Your session uses secure server-side storage and protected form submissions.</p>
+            <p>Use the logout button in the sidebar when you finish a shift or leave a shared workstation.</p>
+            <p>For password or account changes, contact your manager so the change is reflected across scheduling and approvals.</p>
           </div>
         </div>
-      </div>
 
-      <!-- App Info -->
-      <div class="text-center text-sm text-slate-500">
-        <p>FlowSync v1.0.0</p>
-        <p class="mt-1">Built with Express + Sequelize + PostgreSQL</p>
+        <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+          <h4 class="text-lg font-bold text-slate-900 dark:text-white mb-4">Support</h4>
+          <% if (managerContact) { %>
+            <p class="text-slate-900 dark:text-white font-medium"><%= managerContact.fullName %></p>
+            <p class="text-sm text-slate-500 mt-1"><%= managerContact.email %></p>
+          <% } else { %>
+            <p class="text-sm text-slate-500">No manager contact is currently configured.</p>
+          <% } %>
+          <p class="text-sm text-slate-500 mt-4">Need schedule changes, profile updates, or help with checklist access? Reach out to your store manager.</p>
+        </div>
       </div>
     </div>
   </main>

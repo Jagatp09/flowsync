@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+server.log
+coverage/
+.claude/settings.local.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
